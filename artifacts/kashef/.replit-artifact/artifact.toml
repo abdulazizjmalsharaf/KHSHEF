@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "كاشف"
+description = "واجهة عربية لمراجعة فواتير الموردين ومطابقتها مع طلبات الشراء والاستلام. المرحلة الأولى: الصفحة الرئيسية ونموذج اسم المورد دون حفظ بيانات."
+version = "1.0.0"
+id = "artifacts/kashef"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20879
+
+[services.development]
+run = "pnpm --filter @workspace/kashef run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kashef", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/kashef/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20879"
+BASE_PATH = "/"
