@@ -1,0 +1,1 @@
+- [Browser configuration refresh](browser-configuration.md) — validate configuration without logging values; restart Vite after secret edits before diagnosing browser failures.
