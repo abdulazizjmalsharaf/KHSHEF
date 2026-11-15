@@ -13,31 +13,46 @@ import {
 } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { saveSupplier } from '@/lib/suppliers';
 
 const schema = z.object({
   supplierName: z.string().trim().min(1, 'اكتب اسم المورد').max(80, 'الاسم أطول من ٨٠ حرفًا'),
 });
 
 function AddSupplierDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const [tried, setTried] = useState(false);
+  const [savedName, setSavedName] = useState('');
+  const [saveError, setSaveError] = useState('');
   const form = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: { supplierName: '' } });
+  const saving = form.formState.isSubmitting;
   const close = (o: boolean) => {
+    if (saving) return;
     onOpenChange(o);
-    if (!o) { form.reset(); setTried(false); }
+    if (!o) { form.reset(); setSavedName(''); setSaveError(''); }
+  };
+  const submit = async ({ supplierName }: z.infer<typeof schema>) => {
+    setSaveError('');
+    setSavedName('');
+    try {
+      await saveSupplier(supplierName);
+      setSavedName(supplierName);
+      form.reset();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'تعذّر حفظ المورد. حاول مجددًا.');
+    }
   };
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent dir="rtl" className="sm:max-w-md text-right rounded-2xl border-[hsl(var(--primary)/0.2)] [&>button]:left-4 [&>button]:right-auto" data-testid="dialog-add-supplier">
+      <DialogContent dir="rtl" aria-busy={saving} className="sm:max-w-md text-right rounded-2xl border-[hsl(var(--primary)/0.2)] [&>button]:left-4 [&>button]:right-auto" data-testid="dialog-add-supplier">
         <DialogHeader className="text-right sm:text-right">
           <DialogTitle className="font-display text-2xl text-primary">إضافة مورد</DialogTitle>
-          <DialogDescription>هذا نموذج أولي للعرض فقط.</DialogDescription>
+          <DialogDescription>أضف اسم المورد لحفظه في قاعدة بيانات كاشف.</DialogDescription>
         </DialogHeader>
-        <div role="note" className="flex gap-3 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm leading-relaxed" data-testid="text-not-connected">
+        <div role="note" className="flex gap-3 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm leading-relaxed" data-testid="text-supabase-connected">
           <Info className="h-5 w-5 shrink-0 text-[hsl(30_80%_38%)]" aria-hidden />
-          <p>النموذج غير متصل بالحفظ بعد. لن يُحفظ أي اسم تكتبه هنا.</p>
+          <p>يُحفظ الاسم في Supabase. لا تتاح قراءة أسماء الموردين أو تعديلها أو حذفها للزوار.</p>
         </div>
         <Form {...form}>
-          <form noValidate onSubmit={form.handleSubmit(() => setTried(true))} className="space-y-4">
+          <form noValidate onSubmit={form.handleSubmit(submit)} className="space-y-4">
             <FormField
               control={form.control}
               name="supplierName"
@@ -45,22 +60,23 @@ function AddSupplierDialog({ open, onOpenChange }: { open: boolean; onOpenChange
                 <FormItem>
                   <FormLabel className="text-base">اسم المورد</FormLabel>
                   <FormControl>
-                    <Input {...field} autoFocus autoComplete="organization" placeholder="مثلًا: مؤسسة الخيرات للخضار" className="h-12 rounded-xl text-base" data-testid="input-supplier-name" />
+                    <Input {...field} disabled={saving} onChange={(event) => { field.onChange(event); setSavedName(''); setSaveError(''); }} autoFocus autoComplete="organization" placeholder="مثلًا: مؤسسة الخيرات للخضار" className="h-12 rounded-xl text-base" data-testid="input-supplier-name" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            {tried && (
-              <p role="status" className="text-sm text-muted-foreground" data-testid="status-not-saved">
-                لم يُحفظ الاسم — الحفظ غير متاح في هذه المرحلة.
+            {savedName && (
+              <p role="status" className="text-sm font-medium text-primary" data-testid="status-supplier-saved">
+                تم حفظ المورد «{savedName}» في Supabase بنجاح.
               </p>
             )}
+            {saveError && <p role="alert" className="text-sm text-destructive" data-testid="status-supplier-error">{saveError}</p>}
             <DialogFooter className="gap-2 sm:justify-start sm:space-x-0">
-              <button type="submit" className="h-11 rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" data-testid="button-submit-supplier">
-                متابعة
+              <button type="submit" disabled={saving || !!savedName} className="h-11 rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed" data-testid="button-submit-supplier">
+                {saving ? 'جارٍ الحفظ…' : 'حفظ المورد'}
               </button>
-              <button type="button" onClick={() => close(false)} className="h-11 rounded-xl border border-input px-6 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="button-cancel-supplier">
+              <button type="button" disabled={saving} onClick={() => close(false)} className="h-11 rounded-xl border border-input px-6 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60" data-testid="button-cancel-supplier">
                 إغلاق
               </button>
             </DialogFooter>
@@ -227,7 +243,7 @@ export default function Home() {
           <div className="flex flex-col items-start justify-between gap-6 rounded-3xl border border-accent/40 bg-accent/15 p-8 sm:flex-row sm:items-center sm:p-10">
             <div>
               <h2 className="font-display text-3xl text-primary">ابدأ بمورّد واحد</h2>
-              <p className="mt-2 text-muted-foreground">أضف اسم مورّدك الأول. (النموذج غير متصل بالحفظ بعد.)</p>
+              <p className="mt-2 text-muted-foreground">أضف اسم مورّدك الأول واحفظه في كاشف.</p>
             </div>
             {cta('button-add-supplier-footer')}
           </div>

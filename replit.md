@@ -10,28 +10,29 @@
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/kashef run dev` — homepage frontend (managed workflow)
-- The current homepage requires no database or secrets.
+- Supplier saving requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Replit Secrets (and Vercel environment variables for a future deployment). These are public browser configuration, never a service-role key.
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
 - API: Express 5
-- Data/backend target requested by the user: Supabase, to be connected in a later approved step. Do not substitute the scaffold's PostgreSQL database.
+- Data/backend: Supabase. Do not substitute the scaffold's PostgreSQL database.
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `supabase/migrations/` — Supabase schema migrations, applied through Supabase, not Replit's managed database.
+- `artifacts/kashef/src/lib/suppliers.ts` — insert-only Supabase Data API client.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- This explicitly scoped step saves one supplier name without introducing login. Visitors may insert names, but cannot read/update/delete them. This is a limited prototype, not a private multi-business workspace; add authenticated ownership and abuse protection before a public launch.
 
 ## Product
 
-The first approved step is only an Arabic RTL homepage and a supplier-name form that explicitly does not save yet. No backend, authentication, invoice extraction, or persistence in this step.
+Arabic RTL homepage and a supplier-name form that saves to Supabase, with validation, pending, success and error states. No invoice extraction, authentication, supplier listing, editing or deletion in this step.
 
 ## User preferences
 
