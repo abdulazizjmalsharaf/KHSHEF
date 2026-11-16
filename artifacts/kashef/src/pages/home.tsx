@@ -1,4 +1,13 @@
 import { useState, type ReactNode } from 'react';
+import { SiteHeader } from '@/components/site-header';
+import { StorageNotice } from '@/components/storage-notice';
+import { FeaturesSection } from '@/components/features-section';
+import { PlansSection } from '@/components/plans-section';
+import { CartSheet } from '@/components/cart-sheet';
+import { useTheme } from '@/hooks/use-theme';
+import { useFavorites } from '@/hooks/use-favorites';
+import { useCart } from '@/hooks/use-cart';
+import type { PlanId } from '@/data/plans';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -172,6 +181,12 @@ function Step({ n, icon, title, children }: { n: string; icon: ReactNode; title:
 
 export default function Home() {
   const [open, setOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const theme = useTheme();
+  const favs = useFavorites();
+  const cart = useCart();
+  const storageFailed = theme.storageFailed || favs.storageFailed || cart.storageFailed;
+  const addPlan = (id: PlanId) => { cart.add(id); setCartOpen(true); };
   const cta = (id: string, cls = '') => (
     <button type="button" onClick={() => setOpen(true)} className={`inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-[0_10px_24px_-12px_hsl(186_62%_20%/0.8)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${cls}`} data-testid={id}>
       <Plus className="h-5 w-5" aria-hidden /> إضافة مورد
@@ -179,20 +194,14 @@ export default function Home() {
   );
 
   return (
-    <div dir="rtl" lang="ar" className="grain min-h-[100dvh] bg-background text-foreground">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5">
-        <a href="#top" className="flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-logo">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary font-display text-xl text-accent">ك</span>
-          <span className="font-display text-2xl text-primary">كاشف</span>
-        </a>
-        <nav className="flex items-center gap-4">
-          <a href="#how" className="hidden text-sm font-medium text-muted-foreground hover:text-primary sm:inline" data-testid="link-how">كيف يعمل</a>
-          {cta('button-add-supplier-header', 'h-10 px-4 text-sm')}
-        </nav>
-      </header>
+    <div dir="rtl" lang="ar" className="grain min-h-[100dvh] w-full min-w-0 overflow-x-clip bg-background text-foreground">
+      <a href="#top" className="sr-only focus:not-sr-only focus:fixed focus:right-4 focus:top-4 focus:z-[60] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground">تخطَّ إلى المحتوى</a>
+      <SiteHeader theme={theme.theme} onToggleTheme={theme.toggle} cartCount={cart.items.length} onOpenCart={() => setCartOpen(true)} cta={cta('button-add-supplier-header', 'h-10 px-4 text-sm')} />
+      <div aria-hidden className="h-[113px] md:h-[65px]" />
+      {storageFailed && <div className="px-5"><StorageNotice /></div>}
 
-      <main id="top">
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-20 pt-8 lg:grid-cols-[1.1fr_1fr] lg:pt-16">
+      <main id="top" tabIndex={-1} className="focus:outline-none">
+        <section className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-5 pb-20 pt-8 lg:grid-cols-[1.1fr_1fr] lg:pt-16">
           <div>
             <p className="rise mb-5 inline-block rounded-full bg-secondary px-4 py-1.5 text-sm font-medium text-primary">للمطاعم والمقاهي والبقالات</p>
             <h1 className="rise font-display text-[2.6rem] leading-[1.15] text-primary sm:text-6xl" style={{ animationDelay: '80ms' }}>
@@ -212,7 +221,7 @@ export default function Home() {
               </a>
             </div>
           </div>
-          <div className="rise" style={{ animationDelay: '200ms' }}>
+          <div className="rise min-w-0" style={{ animationDelay: '200ms' }}>
             <InvoiceExample />
           </div>
         </section>
@@ -226,7 +235,7 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="how" className="mx-auto grid max-w-6xl scroll-mt-6 gap-10 px-5 py-20 lg:grid-cols-[1fr_1.3fr]">
+        <section id="how" className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-5 py-20 lg:grid-cols-[1fr_1.3fr]">
           <div>
             <h2 className="font-display text-4xl text-primary">ثلاث أوراق.<br />مطابقة واحدة.</h2>
             <p className="mt-4 max-w-sm leading-relaxed text-muted-foreground">لا لوحات معقّدة ولا مصطلحات محاسبية. فقط ما طلبته، وما وصلك، وما يُطلب منك دفعه.</p>
@@ -239,7 +248,11 @@ export default function Home() {
           </ol>
         </section>
 
-        <section className="mx-auto max-w-6xl px-5 pb-20">
+        <FeaturesSection isFavorite={favs.isFavorite} onToggleFavorite={favs.toggle} favoriteCount={favs.favorites.length} />
+
+        <PlansSection has={cart.has} onAdd={addPlan} />
+
+        <section className="mx-auto max-w-6xl px-5 py-20">
           <div className="flex flex-col items-start justify-between gap-6 rounded-3xl border border-accent/40 bg-accent/15 p-8 sm:flex-row sm:items-center sm:p-10">
             <div>
               <h2 className="font-display text-3xl text-primary">ابدأ بمورّد واحد</h2>
@@ -255,6 +268,7 @@ export default function Home() {
       </footer>
 
       <AddSupplierDialog open={open} onOpenChange={setOpen} />
+      <CartSheet open={cartOpen} onOpenChange={setCartOpen} items={cart.items} totalFils={cart.totalFils} onRemove={cart.remove} onClear={cart.clear} />
     </div>
   );
 }
