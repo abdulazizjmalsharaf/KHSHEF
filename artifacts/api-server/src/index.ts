@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureTestPaymentsReady } from "./lib/stripe-test-state";
 
 const rawPort = process.env["PORT"];
 
@@ -22,4 +23,7 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  void ensureTestPaymentsReady().catch(() => {
+    logger.warn("Stripe test checkout is not configured; supplier and invoice features remain available");
+  });
 });

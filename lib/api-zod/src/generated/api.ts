@@ -8,6 +8,46 @@
 import * as zod from 'zod';
 
 
+export const GetStripeTestStatusResponse = zod.object({
+  "ready": zod.boolean(),
+  "testMode": zod.literal(true),
+  "message": zod.string()
+})
+
+
+export const createTestCheckoutBodyPlanIdsMax = 3;
+
+
+
+export const CreateTestCheckoutBody = zod.object({
+  "planIds": zod.array(zod.enum(['small-restaurant', 'growth', 'chain'])).min(1).max(createTestCheckoutBodyPlanIdsMax),
+  "requestId": zod.string().uuid()
+})
+
+export const CreateTestCheckoutResponse = zod.object({
+  "url": zod.string(),
+  "testMode": zod.literal(true)
+})
+
+
+export const verifyTestCheckoutBodySessionIdMax = 255;
+
+
+export const verifyTestCheckoutBodySessionIdRegExp = new RegExp('^cs_test_[a-zA-Z0-9]+$');
+
+
+export const VerifyTestCheckoutBody = zod.object({
+  "sessionId": zod.string().max(verifyTestCheckoutBodySessionIdMax).regex(verifyTestCheckoutBodySessionIdRegExp)
+})
+
+export const VerifyTestCheckoutResponse = zod.object({
+  "status": zod.enum(['paid', 'pending', 'expired']),
+  "testMode": zod.literal(true),
+  "message": zod.string(),
+  "planIds": zod.array(zod.string())
+})
+
+
 /**
  * @summary Extract invoice text and verify arithmetic without storing it
  */

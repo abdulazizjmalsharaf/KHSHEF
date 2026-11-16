@@ -5,6 +5,59 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export interface StripeTestStatus {
+  ready: boolean;
+  testMode: true;
+  message: string;
+}
+
+export type CheckoutInputPlanIdsItem = typeof CheckoutInputPlanIdsItem[keyof typeof CheckoutInputPlanIdsItem];
+
+
+export const CheckoutInputPlanIdsItem = {
+  'small-restaurant': 'small-restaurant',
+  growth: 'growth',
+  chain: 'chain',
+} as const;
+
+export interface CheckoutInput {
+  /**
+     * @minItems 1
+     * @maxItems 3
+     */
+  planIds: CheckoutInputPlanIdsItem[];
+  requestId: string;
+}
+
+export interface CheckoutRedirect {
+  url: string;
+  testMode: true;
+}
+
+export interface CheckoutVerificationInput {
+  /**
+     * @maxLength 255
+     * @pattern ^cs_test_[a-zA-Z0-9]+$
+     */
+  sessionId: string;
+}
+
+export type CheckoutVerificationStatus = typeof CheckoutVerificationStatus[keyof typeof CheckoutVerificationStatus];
+
+
+export const CheckoutVerificationStatus = {
+  paid: 'paid',
+  pending: 'pending',
+  expired: 'expired',
+} as const;
+
+export interface CheckoutVerification {
+  status: CheckoutVerificationStatus;
+  testMode: true;
+  message: string;
+  planIds: string[];
+}
+
 export interface InvoiceTextInput {
   /**
      * @minLength 10

@@ -26,9 +26,14 @@ import type {
 
 import type {
   AnalysisError,
+  CheckoutInput,
+  CheckoutRedirect,
+  CheckoutVerification,
+  CheckoutVerificationInput,
   HealthStatus,
   InvoiceAnalysis,
-  InvoiceTextInput
+  InvoiceTextInput,
+  StripeTestStatus
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -57,6 +62,265 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getGetStripeTestStatusUrl = () => {
+
+
+
+
+  return `/api/stripe/test-status`
+}
+
+export const getStripeTestStatus = async ( options?: Parameters<typeof customFetch>[1]): Promise<StripeTestStatus> => {
+
+  return customFetch<StripeTestStatus>(getGetStripeTestStatusUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStripeTestStatusQueryKey = () => {
+    return [
+    `/api/stripe/test-status`
+    ] as const;
+    }
+
+
+export const getGetStripeTestStatusQueryOptions = <TData = Awaited<ReturnType<typeof getStripeTestStatus>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStripeTestStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStripeTestStatusQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStripeTestStatus>>> = ({ signal }) => getStripeTestStatus({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStripeTestStatus>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStripeTestStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getStripeTestStatus>>>
+export type GetStripeTestStatusQueryError = ErrorType<unknown>
+
+
+export function useGetStripeTestStatus<TData = Awaited<ReturnType<typeof getStripeTestStatus>>, TError = ErrorType<unknown>>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStripeTestStatus>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStripeTestStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getStripeTestStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStripeTestStatus<TData = Awaited<ReturnType<typeof getStripeTestStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStripeTestStatus>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getStripeTestStatus>>,
+          TError,
+          Awaited<ReturnType<typeof getStripeTestStatus>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStripeTestStatus<TData = Awaited<ReturnType<typeof getStripeTestStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStripeTestStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+
+export function useGetStripeTestStatus<TData = Awaited<ReturnType<typeof getStripeTestStatus>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStripeTestStatus>>, TError, TData>>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetStripeTestStatusQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateTestCheckoutUrl = () => {
+
+
+
+
+  return `/api/stripe/test-checkout`
+}
+
+export const createTestCheckout = async (checkoutInput: CheckoutInput, options?: Parameters<typeof customFetch>[1]): Promise<CheckoutRedirect> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CheckoutRedirect>(getCreateTestCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(checkoutInput)
+  }
+);}
+
+
+
+
+
+export const getCreateTestCheckoutMutationKey = () => ['createTestCheckout'] as const;
+
+export const getCreateTestCheckoutMutationOptions = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTestCheckout>>, TError,CreateTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTestCheckout>>, TError,CreateTestCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getCreateTestCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTestCheckout>>, CreateTestCheckoutMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createTestCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateTestCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createTestCheckout>>>
+    export type CreateTestCheckoutMutationBody = BodyType<CheckoutInput>
+    export type CreateTestCheckoutMutationError = ErrorType<AnalysisError>
+    export type CreateTestCheckoutMutationVariables = {data: BodyType<CheckoutInput>}
+
+    export const useCreateTestCheckout = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTestCheckout>>, TError,CreateTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createTestCheckout>>,
+        TError,
+        CreateTestCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateTestCheckoutMutationOptions(options), queryClient);
+    }
+
+export const getVerifyTestCheckoutUrl = () => {
+
+
+
+
+  return `/api/stripe/test-verification`
+}
+
+export const verifyTestCheckout = async (checkoutVerificationInput: CheckoutVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<CheckoutVerification> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<CheckoutVerification>(getVerifyTestCheckoutUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(checkoutVerificationInput)
+  }
+);}
+
+
+
+
+
+export const getVerifyTestCheckoutMutationKey = () => ['verifyTestCheckout'] as const;
+
+export const getVerifyTestCheckoutMutationOptions = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyTestCheckout>>, TError,VerifyTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyTestCheckout>>, TError,VerifyTestCheckoutMutationVariables, TContext> => {
+
+const mutationKey = getVerifyTestCheckoutMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyTestCheckout>>, VerifyTestCheckoutMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  verifyTestCheckout(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VerifyTestCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof verifyTestCheckout>>>
+    export type VerifyTestCheckoutMutationBody = BodyType<CheckoutVerificationInput>
+    export type VerifyTestCheckoutMutationError = ErrorType<AnalysisError>
+    export type VerifyTestCheckoutMutationVariables = {data: BodyType<CheckoutVerificationInput>}
+
+    export const useVerifyTestCheckout = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyTestCheckout>>, TError,VerifyTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof verifyTestCheckout>>,
+        TError,
+        VerifyTestCheckoutMutationVariables,
+        TContext
+      > => {
+      return useMutation(getVerifyTestCheckoutMutationOptions(options), queryClient);
+    }
 
 export const getAnalyzeInvoiceUrl = () => {
 

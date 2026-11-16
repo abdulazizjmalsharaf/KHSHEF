@@ -9,6 +9,12 @@
 export * from './analysisError';
 export * from './arithmeticCheck';
 export * from './arithmeticCheckStatus';
+export * from './checkoutInput';
+export * from './checkoutInputPlanIdsItem';
+export * from './checkoutRedirect';
+export * from './checkoutVerification';
+export * from './checkoutVerificationInput';
+export * from './checkoutVerificationStatus';
 export * from './healthStatus';
 export * from './invoiceAnalysis';
 export * from './invoiceAnalysisStatus';
@@ -16,3 +22,4 @@ export * from './invoiceDecimal';
 export * from './invoiceExtraction';
 export * from './invoiceLine';
 export * from './invoiceTextInput';
+export * from './stripeTestStatus';

@@ -11,6 +11,72 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /stripe/test-status:
+    get:
+      operationId: getStripeTestStatus
+      responses:
+        "200":
+          description: Test checkout readiness
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeTestStatus"
+  /stripe/test-checkout:
+    post:
+      operationId: createTestCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutInput"
+      responses:
+        "200":
+          description: Stripe-hosted test checkout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutRedirect"
+        "400":
+          description: Invalid cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "503":
+          description: Payment not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+  /stripe/test-verification:
+    post:
+      operationId: verifyTestCheckout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckoutVerificationInput"
+      responses:
+        "200":
+          description: Verified server-side checkout state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckoutVerification"
+        "403":
+          description: Session not owned by this browser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "503":
+          description: Unable to verify payment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
   /openai/invoice-analysis:
     post:
       operationId: analyzeInvoice
@@ -74,6 +140,47 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    StripeTestStatus:
+      type: object
+      required: [ready, testMode, message]
+      properties:
+        ready: { type: boolean }
+        testMode: { type: boolean, enum: [true] }
+        message: { type: string }
+    CheckoutInput:
+      type: object
+      additionalProperties: false
+      required: [planIds, requestId]
+      properties:
+        planIds:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items: { type: string, enum: [small-restaurant, growth, chain] }
+        requestId: { type: string, format: uuid }
+    CheckoutRedirect:
+      type: object
+      required: [url, testMode]
+      properties:
+        url: { type: string }
+        testMode: { type: boolean, enum: [true] }
+    CheckoutVerificationInput:
+      type: object
+      additionalProperties: false
+      required: [sessionId]
+      properties:
+        sessionId: { type: string, pattern: '^cs_test_[a-zA-Z0-9]+$', maxLength: 255 }
+    CheckoutVerification:
+      type: object
+      required: [status, testMode, message, planIds]
+      properties:
+        status: { type: string, enum: [paid, pending, expired] }
+        testMode: { type: boolean, enum: [true] }
+        message: { type: string }
+        planIds:
+          type: array
+          items: { type: string }
     InvoiceTextInput:
       type: object
       additionalProperties: false

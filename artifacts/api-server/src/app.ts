@@ -3,6 +3,8 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import cookieParser from "cookie-parser";
+import stripeWebhookRouter from "./routes/stripe-webhook";
 
 const app: Express = express();
 
@@ -26,6 +28,8 @@ app.use(
   }),
 );
 app.use(cors());
+app.use(stripeWebhookRouter);
+app.use(cookieParser());
 app.use(express.json({ limit: "64kb" }));
 app.use(express.urlencoded({ extended: true }));
 
