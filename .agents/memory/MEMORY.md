@@ -1,1 +1,2 @@
 - [Browser configuration refresh](browser-configuration.md) — validate configuration without logging values; restart Vite after secret edits before diagnosing browser failures.
+- [Stripe publishing restriction](stripe-publishing-gate.md) — disabling payment code does not detach the sandbox connection that can block Republish.
