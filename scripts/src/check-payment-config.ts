@@ -18,4 +18,23 @@ function inspectDatabase() {
     };
   } catch { return { present: true, parseable: false }; }
 }
-console.info(JSON.stringify({ database: inspectDatabase(), stripeTestKeyPresent: /^sk_test_/.test(process.env.STRIPE_SECRET_KEY ?? "") }));
+function inspectWrapper(raw: string | undefined, name: string) {
+  if (!raw) return { present: false };
+  const trimmed = raw.trim();
+  return {
+    hasVariableAssignment: new RegExp(`^${name}\\s*=`).test(trimmed),
+    isVariableNameOnly: trimmed === name,
+    hasSurroundingQuotes: /^["'`]|["'`]$/.test(trimmed),
+    hasCodeFence: trimmed.startsWith("```"),
+    hasLineBreak: /[\r\n]/.test(trimmed),
+    hasPostgresSchemeInside: /postgres(?:ql)?:\/\//i.test(trimmed),
+    hasTestSecretPrefixInside: /sk_test_/.test(trimmed),
+    hasMaskedPlaceholder: /redacted|masked|^\*+$|YOUR.PASSWORD|YOUR.PROJECT/i.test(trimmed),
+  };
+}
+console.info(JSON.stringify({
+  database: inspectDatabase(),
+  databaseFormat: inspectWrapper(process.env.SUPABASE_DATABASE_URL, "SUPABASE_DATABASE_URL"),
+  stripeTestKeyPresent: /^sk_test_/.test(process.env.STRIPE_SECRET_KEY ?? ""),
+  stripeFormat: inspectWrapper(process.env.STRIPE_SECRET_KEY, "STRIPE_SECRET_KEY"),
+}));
