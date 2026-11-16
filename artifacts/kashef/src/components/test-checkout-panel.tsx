@@ -55,6 +55,9 @@ export function TestCheckoutPanel({ open, ids, onBusyChange }: Props) {
         <FlaskConical className="h-5 w-5 shrink-0 text-[hsl(30_80%_38%)] dark:text-accent" aria-hidden />
         <p>وضع اختبار فقط: لا تُخصم أي مبالغ حقيقية. هذه محاكاة اشتراك، ولا تُفعّل أي حساب مدفوع.</p>
       </div>
+      <p className="rounded-xl bg-muted p-3 text-xs leading-relaxed text-muted-foreground">
+        بطاقة الاختبار: <bdi className="font-mono">4242 4242 4242 4242</bdi>، تاريخ انتهاء مستقبلي، وأي رمز CVC من ٣ أرقام. لا تستخدم بيانات بطاقة حقيقية.
+      </p>
 
       <div aria-live="polite" data-testid="status-stripe-readiness">
         {status.isLoading || (status.isFetching && !status.data) ? (

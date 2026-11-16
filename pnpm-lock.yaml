@@ -682,6 +682,9 @@ importers:
 
   lib/stripe-test:
     dependencies:
+      '@replit/connectors-sdk':
+        specifier: ^0.7.0
+        version: 0.7.0
       pg:
         specifier: ^8.20.0
         version: 8.23.1

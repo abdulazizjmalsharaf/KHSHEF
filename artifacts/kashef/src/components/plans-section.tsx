@@ -12,7 +12,7 @@ export function PlansSection({ has, onAdd }: { has: (id: PlanId) => boolean; onA
         </div>
         <div role="note" className="mt-6 flex max-w-2xl gap-3 rounded-xl border border-accent/40 bg-accent/10 p-4 text-sm leading-relaxed" data-testid="text-plans-notice">
           <Info className="h-5 w-5 shrink-0 text-[hsl(30_80%_38%)] dark:text-accent" aria-hidden />
-          <p>تصفّح الباقات وأضف ما يناسبك للسلة لحفظ اختياراتك. الدفع مؤجّل حاليًا، ولا يُفعَّل اشتراك أو يُحصَّل أي مبلغ.</p>
+          <p>أضف الباقات للسلة وجرّب Stripe Checkout في وضع الاختبار فقط. لا يُخصم أي مبلغ حقيقي ولا يُفعّل اشتراك مدفوع.</p>
         </div>
         <ul className="mt-10 grid gap-5 md:grid-cols-3">
           {PLANS.map((p, i) => {

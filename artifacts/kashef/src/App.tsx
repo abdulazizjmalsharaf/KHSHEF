@@ -5,7 +5,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import Home from '@/pages/home';
 import NotFound from '@/pages/not-found';
-import PaymentDeferred from '@/pages/payment-deferred';
+import CheckoutReturn from '@/pages/checkout-return';
+import CheckoutCancel from '@/pages/checkout-cancel';
 import {
   Route,
   Switch,
@@ -23,8 +24,8 @@ function Router() {
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/checkout/return" component={PaymentDeferred} />
-        <Route path="/checkout/cancel" component={PaymentDeferred} />
+        <Route path="/checkout/return" component={CheckoutReturn} />
+        <Route path="/checkout/cancel" component={CheckoutCancel} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>
