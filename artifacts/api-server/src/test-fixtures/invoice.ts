@@ -10,6 +10,6 @@ export function fixture(): ExtractedInvoice {
     ],
     subtotal: "4.750", discountAmount: "0", discountRate: null,
     taxAmount: "0", taxRate: null, additionalCharges: null, total: "4.750",
-    taxIncluded: false, unsupportedAdjustments: false, notes: [],
+    taxIncluded: false, unsupportedAdjustments: false, sourceReviewRequired: false, notes: [],
   };
 }

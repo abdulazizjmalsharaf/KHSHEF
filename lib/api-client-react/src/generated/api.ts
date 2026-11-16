@@ -32,6 +32,7 @@ import type {
   CheckoutVerificationInput,
   HealthStatus,
   InvoiceAnalysis,
+  InvoiceFileInput,
   InvoiceTextInput,
   StripeTestStatus
 } from './api.schemas';
@@ -408,6 +409,83 @@ export const useAnalyzeInvoice = <TError = ErrorType<AnalysisError>,
         TContext
       > => {
       return useMutation(getAnalyzeInvoiceMutationOptions(options), queryClient);
+    }
+
+export const getAnalyzeInvoiceFileUrl = () => {
+
+
+
+
+  return `/api/openai/invoice-file-analysis`
+}
+
+/**
+ * @summary Analyze an invoice image or PDF without storing it
+ */
+export const analyzeInvoiceFile = async (invoiceFileInput: InvoiceFileInput, options?: Parameters<typeof customFetch>[1]): Promise<InvoiceAnalysis> => {
+    const formData = new FormData();
+formData.append(`file`, invoiceFileInput.file);
+formData.append(`consent`, invoiceFileInput.consent.toString())
+
+  return customFetch<InvoiceAnalysis>(getAnalyzeInvoiceFileUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getAnalyzeInvoiceFileMutationKey = () => ['analyzeInvoiceFile'] as const;
+
+export const getAnalyzeInvoiceFileMutationOptions = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvoiceFile>>, TError,AnalyzeInvoiceFileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof analyzeInvoiceFile>>, TError,AnalyzeInvoiceFileMutationVariables, TContext> => {
+
+const mutationKey = getAnalyzeInvoiceFileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof analyzeInvoiceFile>>, AnalyzeInvoiceFileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  analyzeInvoiceFile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AnalyzeInvoiceFileMutationResult = NonNullable<Awaited<ReturnType<typeof analyzeInvoiceFile>>>
+    export type AnalyzeInvoiceFileMutationBody = BodyType<InvoiceFileInput>
+    export type AnalyzeInvoiceFileMutationError = ErrorType<AnalysisError>
+    export type AnalyzeInvoiceFileMutationVariables = {data: BodyType<InvoiceFileInput>}
+
+    /**
+ * @summary Analyze an invoice image or PDF without storing it
+ */
+export const useAnalyzeInvoiceFile = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof analyzeInvoiceFile>>, TError,AnalyzeInvoiceFileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof analyzeInvoiceFile>>,
+        TError,
+        AnalyzeInvoiceFileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAnalyzeInvoiceFileMutationOptions(options), queryClient);
     }
 
 export const getHealthCheckUrl = () => {

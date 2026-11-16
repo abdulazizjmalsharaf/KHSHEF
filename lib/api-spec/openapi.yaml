@@ -125,6 +125,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalysisError"
+  /openai/invoice-file-analysis:
+    post:
+      operationId: analyzeInvoiceFile
+      tags: [invoices]
+      summary: Analyze an invoice image or PDF without storing it
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/InvoiceFileInput"
+      responses:
+        "200":
+          description: Extracted values and arithmetic checks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceAnalysis"
+        "400":
+          description: Unsupported file, missing consent or unrecognized invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "413":
+          description: File or PDF exceeds safe processing limits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "429":
+          description: Request limit or analysis capacity reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "502":
+          description: Provider or extraction failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "503":
+          description: Analysis temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "504":
+          description: Analysis timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
   /healthz:
     get:
       operationId: healthCheck
@@ -196,6 +250,13 @@ components:
         consent:
           type: boolean
           enum: [true]
+    InvoiceFileInput:
+      type: object
+      additionalProperties: false
+      required: [file, consent]
+      properties:
+        file: { type: string, format: binary, description: One JPEG, PNG, WebP image, or PDF up to 8 MB }
+        consent: { type: boolean, enum: [true] }
     AnalysisError:
       type: object
       required: [error]
@@ -219,7 +280,7 @@ components:
     InvoiceExtraction:
       type: object
       additionalProperties: false
-      required: [isInvoice, currency, items, subtotal, discountAmount, discountRate, taxAmount, taxRate, additionalCharges, total, taxIncluded, unsupportedAdjustments, notes]
+      required: [isInvoice, currency, items, subtotal, discountAmount, discountRate, taxAmount, taxRate, additionalCharges, total, taxIncluded, unsupportedAdjustments, sourceReviewRequired, notes]
       properties:
         isInvoice: { type: boolean }
         currency: { type: [string, "null"], maxLength: 30 }
@@ -236,6 +297,7 @@ components:
         total: { $ref: "#/components/schemas/InvoiceDecimal" }
         taxIncluded: { type: [boolean, "null"] }
         unsupportedAdjustments: { type: boolean }
+        sourceReviewRequired: { type: boolean }
         notes:
           type: array
           maxItems: 12

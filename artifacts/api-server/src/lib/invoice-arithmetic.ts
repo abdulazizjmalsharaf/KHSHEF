@@ -17,11 +17,12 @@ export function verifyInvoice(invoice: ExtractedInvoice): InvoiceAnalysis {
   const warnings: string[] = [...invoice.notes];
   if (knownDigits === undefined) warnings.push("العملة غير محددة أو غير مدعومة للتقريب؛ عرضنا الحساب بثلاث منازل للمراجعة فقط.");
   if (invoice.unsupportedAdjustments) warnings.push("توجد بيانات أو تسويات غير واضحة؛ لا يمكن اعتماد المقارنة النهائية.");
+  if (invoice.sourceReviewRequired) warnings.push("استُخرجت البيانات من صورة أو صفحة ممسوحة؛ راجع الأرقام في الأصل، لذلك تبقى المطابقة غير مؤكدة.");
   if (invoice.taxIncluded) warnings.push("الأسعار شاملة الضريبة؛ يلزم تحديد أساس المجاميع يدويًا، ولم نضف الضريبة مرة أخرى.");
   if (invoice.discountAmount === null) warnings.push("خصم الفاتورة غير مذكور؛ الإجمالي المحسوب يستخدم الخصومات الصريحة فقط، ولا يؤكد عدم وجود خصم آخر.");
   if (invoice.taxAmount === null) warnings.push("ضريبة الفاتورة غير مذكورة؛ لم نفترض معدل ضريبة أو نؤكد أنها صفر.");
   if (invoice.additionalCharges !== null && invoice.taxRate !== null) warnings.push("توجد رسوم إضافية؛ لم نتحقق من وعائها الضريبي أو ضريبة الرسوم.");
-  const safeBasis = !invoice.unsupportedAdjustments && invoice.taxIncluded !== true && knownDigits !== undefined;
+  const safeBasis = !invoice.unsupportedAdjustments && !invoice.sourceReviewRequired && invoice.taxIncluded !== true && knownDigits !== undefined;
   const check = (label: string, stated: string | null, calc: Decimal | null, reliable = safeBasis): ArithmeticCheck => {
     const calculated = calc === null ? null : money(calc);
     const difference = calc !== null && stated !== null ? money(value(stated).minus(round(calc))) : null;

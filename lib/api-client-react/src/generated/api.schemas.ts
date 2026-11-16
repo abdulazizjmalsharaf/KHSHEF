@@ -78,6 +78,12 @@ export interface InvoiceTextInput {
   consent: true;
 }
 
+export interface InvoiceFileInput {
+  /** One JPEG */
+  file: Blob | File;
+  consent: true;
+}
+
 export interface AnalysisError {
   error: string;
 }
@@ -118,6 +124,7 @@ export interface InvoiceExtraction {
   /** @nullable */
   taxIncluded: boolean | null;
   unsupportedAdjustments: boolean;
+  sourceReviewRequired: boolean;
   /**
      * @maxItems 12
      * @items.maxLength 300

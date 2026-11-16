@@ -27,6 +27,7 @@ export interface InvoiceExtraction {
   /** @nullable */
   taxIncluded: boolean | null;
   unsupportedAdjustments: boolean;
+  sourceReviewRequired: boolean;
   /**
      * @maxItems 12
      * @items.maxLength 300

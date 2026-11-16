@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { verifyInvoice } from "./invoice-arithmetic";
-import { extractionSchema, groundExtraction, normalizeInvoiceText } from "./invoice-extraction";
+import { extractionSchema, groundExtraction, normalizeInvoiceText, parseLooseInvoiceText, resolveInvoiceExtraction } from "./invoice-extraction";
 import { fixture } from "../test-fixtures/invoice";
 
 test("correct explicit zero-tax invoice matches with exact fils", () => {
@@ -53,6 +53,37 @@ test("unknown adjustments keep equality conditional, never confirmed", () => {
   assert.equal(r.status, "unverified");
   assert.equal(r.checks.at(-1)?.status, "unverified");
   assert.equal(r.invoice.taxAmount, null);
+});
+test("short item-only lists are recovered without inventing quantity or invoice totals", () => {
+  const empty = fixture();
+  empty.isInvoice = false;
+  empty.items = [];
+  const invoice = resolveInvoiceExtraction(empty, "حليب 230\nبصل 400");
+  assert.deepEqual(invoice.items.map(({ description, lineTotal, quantity, unitPrice }) => ({ description, lineTotal, quantity, unitPrice })), [
+    { description: "حليب", lineTotal: "230", quantity: null, unitPrice: null },
+    { description: "بصل", lineTotal: "400", quantity: null, unitPrice: null },
+  ]);
+  assert.equal(invoice.total, null);
+  assert.equal(verifyInvoice(invoice).status, "unverified");
+  assert.equal(verifyInvoice(invoice).itemChecks[0].calculated, null);
+});
+test("loose list supports Arabic digits and an explicit currency but skips summary lines", () => {
+  const invoice = parseLooseInvoiceText("فاتورة\nطماطم ٢٫٥٠٠ د.ك\nبصل ١٫٠٠٠ د.ك\nالإجمالي ٣٫٥٠٠ د.ك");
+  assert.equal(invoice?.currency, "KWD");
+  assert.deepEqual(invoice?.items.map((item) => item.description), ["طماطم", "بصل"]);
+  assert.equal(invoice?.total, null);
+});
+test("ordinary non-invoice text and ambiguous single rows are not mislabeled as invoices", () => {
+  assert.equal(parseLooseInvoiceText("مرحبًا بك في موقعنا"), null);
+  assert.equal(parseLooseInvoiceText("حليب 230"), null);
+});
+test("visual extraction always keeps arithmetic unverified for manual review", () => {
+  const invoice = fixture();
+  invoice.sourceReviewRequired = true;
+  const result = verifyInvoice(invoice);
+  assert.equal(result.status, "unverified");
+  assert.ok(result.itemChecks.every((check) => check.status === "unverified"));
+  assert.ok(result.warnings.some((warning) => warning.includes("صورة")));
 });
 test("Arabic and Persian digits and grouped numbers normalize without losing precision", () => {
   assert.equal(normalizeInvoiceText("٢ × ١٫٢٥٠ = ٢٫٥٠٠ ۱۲۳ ١٬٠٠٠٫٥ 1,000.5"), "2 × 1.250 = 2.500 123 1000.5 1000.5");

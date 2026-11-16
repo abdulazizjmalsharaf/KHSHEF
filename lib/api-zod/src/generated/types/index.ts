@@ -20,6 +20,7 @@ export * from './invoiceAnalysis';
 export * from './invoiceAnalysisStatus';
 export * from './invoiceDecimal';
 export * from './invoiceExtraction';
+export * from './invoiceFileInput';
 export * from './invoiceLine';
 export * from './invoiceTextInput';
 export * from './stripeTestStatus';

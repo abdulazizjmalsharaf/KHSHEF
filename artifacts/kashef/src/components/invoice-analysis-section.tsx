@@ -1,9 +1,10 @@
-import { useId, useState, type FormEvent } from 'react';
-import { AlertTriangle, CheckCircle2, FileText, HelpCircle, Loader2, RotateCcw, ShieldCheck, Sparkles, XCircle } from 'lucide-react';
+import { useId, useState, type FormEvent, type ChangeEvent } from 'react';
+import { AlertTriangle, CheckCircle2, FileText, HelpCircle, Loader2, RotateCcw, ShieldCheck, Sparkles, Upload, X, XCircle } from 'lucide-react';
 import { useAnalyzeInvoice, type ArithmeticCheck, type InvoiceAnalysis, type InvoiceExtraction } from '@workspace/api-client-react';
 
 const MIN = 10;
 const MAX = 12000;
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 const SAMPLE = `فاتورة ضريبية (مثال تجريبي غير حقيقي)
 المورد: مؤسسة الساحل للتموين - الكويت
@@ -152,7 +153,7 @@ function Result({ data }: { data: InvoiceAnalysis }) {
           {inv.items.length ? (
             <div className="overflow-x-auto rounded-2xl border border-card-border bg-card">
               <table className="w-full min-w-[640px] text-sm">
-                <caption className="sr-only">البنود المستخرجة من نص الفاتورة</caption>
+                <caption className="sr-only">البنود المستخرجة من الفاتورة</caption>
                 <thead className="bg-muted/60 text-xs text-muted-foreground">
                   <tr>
                     <th scope="col" className="p-3 text-right font-medium">الصنف</th>
@@ -192,7 +193,7 @@ function Result({ data }: { data: InvoiceAnalysis }) {
               </table>
             </div>
           ) : (
-            <p className="rounded-2xl border border-dashed border-card-border p-6 text-center text-muted-foreground" data-testid="empty-items">لم يُستخرج أي بند من النص.</p>
+            <p className="rounded-2xl border border-dashed border-card-border p-6 text-center text-muted-foreground" data-testid="empty-items">لم يُستخرج أي بند من الفاتورة.</p>
           )}
         </div>
         <div className="min-w-0">
@@ -226,30 +227,88 @@ function Result({ data }: { data: InvoiceAnalysis }) {
 
 export function InvoiceAnalysisSection() {
   const [text, setText] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [fileBusy, setFileBusy] = useState(false);
+  const [fileResult, setFileResult] = useState<InvoiceAnalysis | null>(null);
+  const [fileError, setFileError] = useState('');
   const [consent, setConsent] = useState(false);
   const [touched, setTouched] = useState(false);
   const textId = useId();
+  const fileId = useId();
   const consentId = useId();
   const privacyId = useId();
   const hintId = useId();
   const mutation = useAnalyzeInvoice({ mutation: { gcTime: 0 } });
-  const pending = mutation.isPending;
+  const pending = mutation.isPending || fileBusy;
   const len = text.trim().length;
   const tooShort = len < MIN;
   const tooLong = text.length > MAX;
-  const invalid = tooShort || tooLong;
+  const bothInputs = Boolean(file && text.trim());
+  const invalid = bothInputs || tooLong || (!file && tooShort);
+  const result = fileResult ?? mutation.data;
 
   const edit = (v: string) => {
     setText(v);
+    setFileResult(null);
+    setFileError('');
     if (mutation.data || mutation.error) mutation.reset();
   };
-  const submit = (e?: FormEvent) => {
+  const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const chosen = event.target.files?.[0] ?? null;
+    event.target.value = '';
+    setFileError('');
+    setFileResult(null);
+    if (mutation.data || mutation.error) mutation.reset();
+    if (!chosen) return;
+    setFile(null);
+    const extension = chosen.name.split('.').at(-1)?.toLowerCase();
+    if (!['pdf', 'jpg', 'jpeg', 'png', 'webp'].includes(extension ?? '')) {
+      setFileError('ارفع صورة JPG أو PNG أو WebP، أو ملف PDF.');
+      return;
+    }
+    if (chosen.size > MAX_FILE_BYTES) {
+      setFileError('الحد الأقصى لحجم الملف ٨ ميغابايت.');
+      return;
+    }
+    setFile(chosen);
+  };
+  const removeFile = () => {
+    setFile(null);
+    setFileResult(null);
+    setFileError('');
+  };
+  const submit = async (e?: FormEvent) => {
     e?.preventDefault();
     setTouched(true);
     if (invalid || !consent || pending) return;
-    mutation.mutate({ data: { text, consent: true } });
+    setFileResult(null);
+    setFileError('');
+    if (!file) {
+      mutation.mutate({ data: { text, consent: true } });
+      return;
+    }
+    const form = new FormData();
+    form.append('file', file, file.name);
+    form.append('consent', 'true');
+    setFileBusy(true);
+    try {
+      const response = await fetch('/api/openai/invoice-file-analysis', { method: 'POST', body: form });
+      const data = await response.json() as InvoiceAnalysis | { error?: string };
+      if (!response.ok) throw new Error('error' in data ? data.error || 'تعذر تحليل الملف.' : 'تعذر تحليل الملف.');
+      setFileResult(data as InvoiceAnalysis);
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : 'تعذر الاتصال بالخادم. تحقق من الإنترنت وأعد المحاولة.');
+    } finally {
+      setFileBusy(false);
+    }
   };
-  const fieldError = touched && invalid ? (tooLong ? `النص أطول من ${MAX.toLocaleString('ar')} حرف. اختصره ثم أعد المحاولة.` : 'الصق نص الفاتورة أولًا (١٠ أحرف على الأقل).') : '';
+  const fieldError = touched && invalid
+    ? bothInputs ? 'استخدم النص أو الملف، وليس الاثنين معًا.'
+      : tooLong ? `النص أطول من ${MAX.toLocaleString('ar')} حرف. اختصره ثم أعد المحاولة.`
+        : !file && tooShort ? 'الصق نص الفاتورة (١٠ أحرف على الأقل) أو ارفع صورة أو PDF.'
+          : ''
+    : '';
+  const analysisError = fileError || (mutation.error ? errorMessage(mutation.error) : '');
 
   return (
     <section id="invoice-analysis" aria-labelledby="invoice-analysis-title" className="border-y border-border bg-secondary/40">
@@ -259,21 +318,21 @@ export function InvoiceAnalysisSection() {
             <p className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-[hsl(var(--chart-4))]" aria-hidden /> متاح الآن
             </p>
-            <h2 id="invoice-analysis-title" className="font-display text-4xl leading-tight text-primary">الصق الفاتورة.<br />نراجع الحساب.</h2>
-            <p className="mt-4 max-w-md leading-relaxed text-muted-foreground">انسخ نص فاتورة المورد كما وصلك في رسالة أو بريد أو ملف، وسيستخرج كاشف البنود والخصومات والضريبة بالذكاء الاصطناعي، ثم يعيد حساب كل سطر والإجمالي ليُظهر أي فرق. يعمل على النص فقط، ولا يقرأ الصور.</p>
+            <h2 id="invoice-analysis-title" className="font-display text-4xl leading-tight text-primary">أدخل الفاتورة.<br />نراجع الحساب.</h2>
+            <p className="mt-4 max-w-md leading-relaxed text-muted-foreground">الصق نص الفاتورة بأي ترتيب، أو ارفع صورة أو PDF. نقبل حتى القوائم المختصرة مثل «حليب 230»؛ الحقول الناقصة تُترك للمراجعة بدل رفض الفاتورة. الصور الممسوحة تُعلّم دائمًا للمراجعة البصرية.</p>
             <div id={privacyId} role="note" className="mt-6 flex gap-3 rounded-2xl border border-primary/25 bg-card p-4 text-sm leading-relaxed" data-testid="text-privacy-notice">
               <ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden />
               <div>
                 <p className="font-semibold text-primary">قبل الإرسال</p>
-                <p className="mt-1 text-muted-foreground">يُرسل النص إلى OpenAI عبر Replit لتحليله. لا يحفظه كاشف ولا نتيجته. لا تلصق معلومات حساسة مثل أرقام الحسابات البنكية أو البطاقات أو بيانات شخصية.</p>
+                <p className="mt-1 text-muted-foreground">يُرسل النص أو الملف إلى OpenAI عبر Replit للتحليل. لا يحفظه كاشف ولا نتيجته، وتُحذف ملفات PDF المؤقتة بعد القراءة. لا ترفع معلومات حساسة مثل أرقام الحسابات البنكية أو البطاقات أو بيانات شخصية.</p>
               </div>
             </div>
           </div>
 
           <form noValidate onSubmit={submit} aria-busy={pending} className="rounded-3xl border border-card-border bg-card p-5 shadow-[0_30px_60px_-34px_hsl(186_62%_20%/0.35)] sm:p-7">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <label htmlFor={textId} className="flex items-center gap-2 text-base font-semibold"><FileText className="h-4 w-4 text-primary" aria-hidden /> نص الفاتورة</label>
-              <button type="button" disabled={pending} onClick={() => { edit(SAMPLE); setTouched(false); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60" data-testid="button-fill-sample">
+              <label htmlFor={textId} className="flex items-center gap-2 text-base font-semibold"><FileText className="h-4 w-4 text-primary" aria-hidden /> نص الفاتورة (اختياري)</label>
+              <button type="button" disabled={pending || !!file} onClick={() => { edit(SAMPLE); setTouched(false); }} className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60" data-testid="button-fill-sample">
                 <Sparkles className="h-3.5 w-3.5" aria-hidden /> املأ بمثال تجريبي (غير حقيقي)
               </button>
             </div>
@@ -287,35 +346,61 @@ export function InvoiceAnalysisSection() {
               maxLength={MAX + 500}
               aria-invalid={!!fieldError}
               aria-describedby={`${hintId} ${privacyId}`}
-              placeholder="مثلًا: طماطم 12 كغ × 0.450 = 5.400 ..."
+              placeholder={'مثلًا:\nحليب 230\nبصل 400\nأو الصق الفاتورة كاملة بأي صيغة نصية'}
               className="w-full resize-y rounded-xl border border-input bg-background p-3 text-base leading-relaxed placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:opacity-70 aria-invalid:border-destructive"
               data-testid="input-invoice-text"
             />
             <div id={hintId} className="mt-1 flex justify-between gap-3 text-xs">
-              <span className={fieldError ? 'text-destructive' : 'text-muted-foreground'} role={fieldError ? 'alert' : undefined}>{fieldError || 'من ١٠ إلى ١٢٠٠٠ حرف.'}</span>
+              <span className={fieldError ? 'text-destructive' : 'text-muted-foreground'} role={fieldError ? 'alert' : undefined}>{fieldError || 'اقبل القائمة المختصرة أو الفاتورة الكاملة؛ لا يلزم ذكر كل الحقول.'}</span>
               <span className={`tabular-nums ${tooLong ? 'font-semibold text-destructive' : 'text-muted-foreground'}`} data-testid="text-char-count">{text.length.toLocaleString('ar')} / {MAX.toLocaleString('ar')}</span>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-dashed border-primary/35 p-4">
+              <input
+                id={fileId}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
+                disabled={pending}
+                onChange={selectFile}
+                className="sr-only"
+                data-testid="input-invoice-file"
+              />
+              <label htmlFor={fileId} className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-input px-4 text-sm font-semibold hover:bg-muted focus-within:ring-2 focus-within:ring-ring ${pending ? 'pointer-events-none opacity-60' : ''}`} data-testid="button-select-invoice-file">
+                <Upload className="h-4 w-4 text-primary" aria-hidden /> ارفع صورة أو PDF
+              </label>
+              <span className="ms-3 text-xs text-muted-foreground">JPG، PNG، WebP أو PDF · حتى ٨ م.ب. · حتى ٦ صفحات ممسوحة</span>
+              {file && (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-lg bg-muted px-3 py-2 text-sm" data-testid="text-selected-invoice-file">
+                  <span className="min-w-0 truncate">{file.name}</span>
+                  <button type="button" disabled={pending} onClick={removeFile} aria-label="إزالة ملف الفاتورة" className="grid h-8 w-8 shrink-0 place-items-center rounded-md hover:bg-background disabled:opacity-50" data-testid="button-remove-invoice-file">
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              )}
+              {fileError && <p className="mt-2 text-sm text-destructive" role="alert">{fileError}</p>}
+              {bothInputs && <p className="mt-2 text-sm text-destructive" role="alert">استخدم النص أو الملف، وليس الاثنين معًا.</p>}
             </div>
 
             <div className="mt-4 flex items-start gap-3 rounded-xl bg-muted/60 p-3">
               <input id={consentId} type="checkbox" checked={consent} disabled={pending} onChange={(e) => setConsent(e.target.checked)} aria-describedby={privacyId} className="mt-1 h-5 w-5 shrink-0 accent-[hsl(var(--primary))]" data-testid="checkbox-consent" />
-              <label htmlFor={consentId} className="text-sm leading-relaxed">أوافق على إرسال هذا النص إلى OpenAI عبر Replit لتحليله، وأؤكد أنه لا يحتوي على معلومات حساسة.</label>
+              <label htmlFor={consentId} className="text-sm leading-relaxed">أوافق على إرسال النص أو الملف إلى OpenAI عبر Replit لتحليله، وأؤكد أنه لا يحتوي على معلومات حساسة.</label>
             </div>
             {touched && !consent && !pending && <p className="mt-2 text-xs text-destructive">يلزم تأكيد الموافقة قبل التحليل.</p>}
 
             <div className="mt-5 flex flex-wrap items-center gap-3">
-              <button type="submit" disabled={pending || !consent || invalid} className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-[0_10px_24px_-12px_hsl(186_62%_20%/0.8)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0" data-testid="button-analyze-invoice">
+              <button type="submit" disabled={pending || !consent || invalid || !!fileError} className="inline-flex h-12 items-center gap-2 rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-[0_10px_24px_-12px_hsl(186_62%_20%/0.8)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0" data-testid="button-analyze-invoice">
                 {pending ? <><Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden /> جارٍ التحليل…</> : 'حلّل الفاتورة'}
               </button>
               {text && !pending && (
                 <button type="button" onClick={() => { edit(''); setTouched(false); }} className="h-12 rounded-xl border border-input px-5 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="button-clear-invoice">مسح النص</button>
               )}
             </div>
-            <p className="sr-only" role="status" aria-live="polite">{pending ? 'جارٍ تحليل الفاتورة' : mutation.data ? 'اكتمل التحليل' : ''}</p>
+            <p className="sr-only" role="status" aria-live="polite">{pending ? 'جارٍ تحليل الفاتورة' : result ? 'اكتمل التحليل' : ''}</p>
 
-            {mutation.error && (
+            {analysisError && (
               <div role="alert" className="mt-5 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm" data-testid="status-analysis-error">
-                <p className="flex gap-2 text-destructive"><XCircle className="h-5 w-5 shrink-0" aria-hidden />{errorMessage(mutation.error)}</p>
-                <button type="button" onClick={() => submit()} disabled={!consent || invalid} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-destructive/40 bg-card px-4 font-semibold text-destructive hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60" data-testid="button-retry-analysis">
+                <p className="flex gap-2 text-destructive"><XCircle className="h-5 w-5 shrink-0" aria-hidden />{analysisError}</p>
+                <button type="button" onClick={() => submit()} disabled={!consent || invalid || pending} className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-destructive/40 bg-card px-4 font-semibold text-destructive hover:bg-destructive/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60" data-testid="button-retry-analysis">
                   <RotateCcw className="h-4 w-4" aria-hidden /> إعادة المحاولة
                 </button>
               </div>
@@ -332,7 +417,7 @@ export function InvoiceAnalysisSection() {
             </div>
           </div>
         )}
-        {mutation.data && !pending && <Result data={mutation.data} />}
+        {result && !pending && <Result data={result} />}
       </div>
     </section>
   );

@@ -111,6 +111,7 @@ export const AnalyzeInvoiceResponse = zod.object({
   "total": zod.string().regex(analyzeInvoiceResponseInvoiceTotalRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
   "taxIncluded": zod.boolean().nullable(),
   "unsupportedAdjustments": zod.boolean(),
+  "sourceReviewRequired": zod.boolean(),
   "notes": zod.array(zod.string().max(analyzeInvoiceResponseInvoiceNotesItemMax)).max(analyzeInvoiceResponseInvoiceNotesMax)
 }),
   "itemChecks": zod.array(zod.object({
@@ -123,6 +124,84 @@ export const AnalyzeInvoiceResponse = zod.object({
   "checks": zod.array(zod.object({
   "label": zod.string(),
   "stated": zod.string().regex(analyzeInvoiceResponseChecksItemStatedRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "calculated": zod.string().nullable(),
+  "difference": zod.string().nullable(),
+  "status": zod.enum(['match', 'mismatch', 'unverified'])
+})),
+  "warnings": zod.array(zod.string()),
+  "status": zod.enum(['match', 'mismatch', 'unverified']),
+  "roundingNote": zod.string()
+})
+
+
+/**
+ * @summary Analyze an invoice image or PDF without storing it
+ */
+export const AnalyzeInvoiceFileBody = zod.object({
+  "file": zod.instanceof(Blob),
+  "consent": zod.literal(true)
+})
+
+export const analyzeInvoiceFileResponseInvoiceCurrencyMax = 30;
+
+export const analyzeInvoiceFileResponseInvoiceItemsItemDescriptionMax = 200;
+
+export const analyzeInvoiceFileResponseInvoiceItemsItemQuantityRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceItemsItemUnitPriceRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceItemsItemLineTotalRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceItemsItemDiscountAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceItemsItemTaxAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceItemsMax = 60;
+
+export const analyzeInvoiceFileResponseInvoiceSubtotalRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceDiscountAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceDiscountRateRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceTaxAmountRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceTaxRateRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceAdditionalChargesRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceTotalRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseInvoiceNotesItemMax = 300;
+
+export const analyzeInvoiceFileResponseInvoiceNotesMax = 12;
+
+export const analyzeInvoiceFileResponseItemChecksItemStatedRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+export const analyzeInvoiceFileResponseChecksItemStatedRegExp = new RegExp('^\\d{1,12}(\\.\\d{1,6})?$');
+
+
+export const AnalyzeInvoiceFileResponse = zod.object({
+  "invoice": zod.object({
+  "isInvoice": zod.boolean(),
+  "currency": zod.string().max(analyzeInvoiceFileResponseInvoiceCurrencyMax).nullable(),
+  "items": zod.array(zod.object({
+  "description": zod.string().max(analyzeInvoiceFileResponseInvoiceItemsItemDescriptionMax),
+  "quantity": zod.string().regex(analyzeInvoiceFileResponseInvoiceItemsItemQuantityRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "unitPrice": zod.string().regex(analyzeInvoiceFileResponseInvoiceItemsItemUnitPriceRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "lineTotal": zod.string().regex(analyzeInvoiceFileResponseInvoiceItemsItemLineTotalRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "discountAmount": zod.string().regex(analyzeInvoiceFileResponseInvoiceItemsItemDiscountAmountRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "taxAmount": zod.string().regex(analyzeInvoiceFileResponseInvoiceItemsItemTaxAmountRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous')
+})).max(analyzeInvoiceFileResponseInvoiceItemsMax),
+  "subtotal": zod.string().regex(analyzeInvoiceFileResponseInvoiceSubtotalRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "discountAmount": zod.string().regex(analyzeInvoiceFileResponseInvoiceDiscountAmountRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "discountRate": zod.string().regex(analyzeInvoiceFileResponseInvoiceDiscountRateRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "taxAmount": zod.string().regex(analyzeInvoiceFileResponseInvoiceTaxAmountRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "taxRate": zod.string().regex(analyzeInvoiceFileResponseInvoiceTaxRateRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "additionalCharges": zod.string().regex(analyzeInvoiceFileResponseInvoiceAdditionalChargesRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "total": zod.string().regex(analyzeInvoiceFileResponseInvoiceTotalRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "taxIncluded": zod.boolean().nullable(),
+  "unsupportedAdjustments": zod.boolean(),
+  "sourceReviewRequired": zod.boolean(),
+  "notes": zod.array(zod.string().max(analyzeInvoiceFileResponseInvoiceNotesItemMax)).max(analyzeInvoiceFileResponseInvoiceNotesMax)
+}),
+  "itemChecks": zod.array(zod.object({
+  "label": zod.string(),
+  "stated": zod.string().regex(analyzeInvoiceFileResponseItemChecksItemStatedRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
+  "calculated": zod.string().nullable(),
+  "difference": zod.string().nullable(),
+  "status": zod.enum(['match', 'mismatch', 'unverified'])
+})),
+  "checks": zod.array(zod.object({
+  "label": zod.string(),
+  "stated": zod.string().regex(analyzeInvoiceFileResponseChecksItemStatedRegExp).nullable().describe('Exact nonnegative decimal string from invoice; null if missing or ambiguous'),
   "calculated": zod.string().nullable(),
   "difference": zod.string().nullable(),
   "status": zod.enum(['match', 'mismatch', 'unverified'])
