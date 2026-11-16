@@ -4,6 +4,7 @@ import { StorageNotice } from '@/components/storage-notice';
 import { FeaturesSection } from '@/components/features-section';
 import { PlansSection } from '@/components/plans-section';
 import { CartSheet } from '@/components/cart-sheet';
+import { InvoiceAnalysisSection } from '@/components/invoice-analysis-section';
 import { useTheme } from '@/hooks/use-theme';
 import { useFavorites } from '@/hooks/use-favorites';
 import { useCart } from '@/hooks/use-cart';
@@ -219,6 +220,9 @@ export default function Home() {
               <a href="#how" className="inline-flex h-12 items-center gap-2 rounded-xl border border-input px-5 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-scroll-how">
                 كيف يعمل <ArrowDown className="h-4 w-4" aria-hidden />
               </a>
+              <a href="#invoice-analysis" className="inline-flex h-12 items-center gap-2 rounded-xl px-2 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-scroll-invoice-analysis">
+                حلّل نص فاتورة <ReceiptText className="h-4 w-4" aria-hidden />
+              </a>
             </div>
           </div>
           <div className="rise min-w-0" style={{ animationDelay: '200ms' }}>
@@ -247,6 +251,8 @@ export default function Home() {
             <Step n="٤" icon={<Info className="h-5 w-5" aria-hidden />} title="عرض الفروقات">كل صنف لا يتطابق يظهر أمامك، لتقرر بثقة قبل الدفع.</Step>
           </ol>
         </section>
+
+        <InvoiceAnalysisSection />
 
         <FeaturesSection isFavorite={favs.isFavorite} onToggleFavorite={favs.toggle} favoriteCount={favs.favorites.length} />
 

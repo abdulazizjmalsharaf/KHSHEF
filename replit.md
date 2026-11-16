@@ -32,9 +32,13 @@
 
 ## Product
 
-Arabic RTL homepage and a supplier-name form that saves to Supabase, with validation, pending, success and error states. No invoice extraction, authentication, supplier listing, editing or deletion in this step.
+Arabic RTL homepage and a supplier-name form that saves to Supabase, with validation, pending, success and error states. No authentication, supplier listing, editing or deletion.
 
 The homepage also provides a fixed section navigation, saved light/dark preference (system by default), searchable feature status cards with saved favorites, approved monthly KWD plan prices, and a local demo cart. Payment is explicitly unavailable pending Stripe Test Mode integration. No plan entitlements or paid access have been implemented. Theme, favorites and demo cart are browser-local, not account data.
+
+Invoice text analysis uses server-only OpenAI via Replit AI Integrations at `POST /api/openai/invoice-analysis`, with explicit browser consent, a 12,000-character limit, a 45-second deadline, a process-wide 12 requests/minute budget and maximum two concurrent extractions. The app does not save invoice text/results or log provider payloads; do not add body logging or browser persistence. This is text extraction and arithmetic review, not OCR, three-way matching or accountant approval. A static-only Vercel frontend will also need this backend and its AI configuration deployed; Replit workspace credentials are not a portable Vercel secret.
+
+Arithmetic uses exact decimals, half-up currency precision per line, then sums. Missing fields remain null. Unknown currencies, inclusive taxes and unsupported adjustments require review, not guessed tax rates. Document tax and discounts are distinct from line adjustments to avoid double counting; missing document adjustment amounts keep final equality conditional. Tests: `pnpm --filter @workspace/scripts exec tsx --test ../artifacts/api-server/src/lib/invoice-arithmetic.test.ts ../artifacts/api-server/src/routes/invoice-analysis.test.ts`.
 
 ## User preferences
 

@@ -11,6 +11,54 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /openai/invoice-analysis:
+    post:
+      operationId: analyzeInvoice
+      tags: [invoices]
+      summary: Extract invoice text and verify arithmetic without storing it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvoiceTextInput"
+      responses:
+        "200":
+          description: Extracted values and deterministic arithmetic checks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoiceAnalysis"
+        "400":
+          description: Invalid input or not an invoice
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "429":
+          description: Request limit reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "502":
+          description: Invalid provider response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "503":
+          description: Analysis temporarily unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "504":
+          description: Analysis timed out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
   /healthz:
     get:
       operationId: healthCheck
@@ -26,6 +74,87 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    InvoiceTextInput:
+      type: object
+      additionalProperties: false
+      required: [text, consent]
+      properties:
+        text:
+          type: string
+          minLength: 10
+          maxLength: 12000
+        consent:
+          type: boolean
+          enum: [true]
+    AnalysisError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+    InvoiceDecimal:
+      type: [string, "null"]
+      description: Exact nonnegative decimal string from invoice; null if missing or ambiguous
+      pattern: '^\d{1,12}(\.\d{1,6})?$'
+    InvoiceLine:
+      type: object
+      additionalProperties: false
+      required: [description, quantity, unitPrice, lineTotal, discountAmount, taxAmount]
+      properties:
+        description: { type: string, maxLength: 200 }
+        quantity: { $ref: "#/components/schemas/InvoiceDecimal" }
+        unitPrice: { $ref: "#/components/schemas/InvoiceDecimal" }
+        lineTotal: { $ref: "#/components/schemas/InvoiceDecimal" }
+        discountAmount: { $ref: "#/components/schemas/InvoiceDecimal" }
+        taxAmount: { $ref: "#/components/schemas/InvoiceDecimal" }
+    InvoiceExtraction:
+      type: object
+      additionalProperties: false
+      required: [isInvoice, currency, items, subtotal, discountAmount, discountRate, taxAmount, taxRate, additionalCharges, total, taxIncluded, unsupportedAdjustments, notes]
+      properties:
+        isInvoice: { type: boolean }
+        currency: { type: [string, "null"], maxLength: 30 }
+        items:
+          type: array
+          maxItems: 60
+          items: { $ref: "#/components/schemas/InvoiceLine" }
+        subtotal: { $ref: "#/components/schemas/InvoiceDecimal" }
+        discountAmount: { $ref: "#/components/schemas/InvoiceDecimal" }
+        discountRate: { $ref: "#/components/schemas/InvoiceDecimal" }
+        taxAmount: { $ref: "#/components/schemas/InvoiceDecimal" }
+        taxRate: { $ref: "#/components/schemas/InvoiceDecimal" }
+        additionalCharges: { $ref: "#/components/schemas/InvoiceDecimal" }
+        total: { $ref: "#/components/schemas/InvoiceDecimal" }
+        taxIncluded: { type: [boolean, "null"] }
+        unsupportedAdjustments: { type: boolean }
+        notes:
+          type: array
+          maxItems: 12
+          items: { type: string, maxLength: 300 }
+    ArithmeticCheck:
+      type: object
+      required: [label, stated, calculated, difference, status]
+      properties:
+        label: { type: string }
+        stated: { $ref: "#/components/schemas/InvoiceDecimal" }
+        calculated: { type: [string, "null"] }
+        difference: { type: [string, "null"] }
+        status: { type: string, enum: [match, mismatch, unverified] }
+    InvoiceAnalysis:
+      type: object
+      required: [invoice, itemChecks, checks, warnings, status, roundingNote]
+      properties:
+        invoice: { $ref: "#/components/schemas/InvoiceExtraction" }
+        itemChecks:
+          type: array
+          items: { $ref: "#/components/schemas/ArithmeticCheck" }
+        checks:
+          type: array
+          items: { $ref: "#/components/schemas/ArithmeticCheck" }
+        warnings:
+          type: array
+          items: { type: string }
+        status: { type: string, enum: [match, mismatch, unverified] }
+        roundingNote: { type: string }
     HealthStatus:
       type: object
       properties:

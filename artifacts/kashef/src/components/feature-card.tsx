@@ -1,4 +1,4 @@
-import { Heart } from 'lucide-react';
+import { ArrowLeft, Heart } from 'lucide-react';
 import type { Feature } from '@/data/features';
 
 export function FeatureCard({ feature, favorite, onToggleFavorite, index }: { feature: Feature; favorite: boolean; onToggleFavorite: () => void; index: number }) {
@@ -27,6 +27,11 @@ export function FeatureCard({ feature, favorite, onToggleFavorite, index }: { fe
       </div>
       <h3 className="font-display text-xl text-primary">{feature.title}</h3>
       <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{feature.body}</p>
+      {feature.href && (
+        <a href={feature.href} className="mt-3 inline-flex items-center gap-1.5 self-start rounded-lg text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid={`link-feature-${feature.id}`}>
+          {feature.linkLabel ?? 'انتقل إلى الميزة'} <ArrowLeft className="h-4 w-4" aria-hidden />
+        </a>
+      )}
       <p className="mt-4">
         {live ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary" data-testid={`status-feature-${feature.id}`}>

@@ -19,7 +19,7 @@ export function FeaturesSection({ isFavorite, onToggleFavorite, favoriteCount }:
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h2 id="features-title" className="font-display text-4xl text-primary">ما يعمل اليوم،<br />وما نبنيه بعده.</h2>
-          <p className="mt-4 max-w-md leading-relaxed text-muted-foreground">نكتب الحالة بوضوح: ميزة واحدة متاحة الآن، والباقي مخطط له ولم يُفعّل بعد.</p>
+          <p className="mt-4 max-w-md leading-relaxed text-muted-foreground">نكتب الحالة بوضوح: بعض المميزات متاح الآن، والباقي مخطط له ولم يُفعّل بعد.</p>
         </div>
         <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
           <div className="relative sm:w-80">
