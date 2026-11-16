@@ -17,8 +17,14 @@ router.use("/stripe", (_req, res, next) => { res.setHeader("Cache-Control", "no-
 router.get("/stripe/test-status", async (_req, res) => {
   try {
     secret();
-    await new SandboxStripe().catalog();
-    res.json({ ready: true, testMode: true, message: "Stripe Demo جاهز. استخدم بطاقة الاختبار فقط؛ لن يُخصم أي مبلغ حقيقي." });
+    const quote = await new SandboxStripe().quote();
+    res.json({
+      ready: true, testMode: true, checkoutCurrency: quote.currency,
+      ...(quote.currency === "usd" ? { exchangeRateUpdatedAt: new Date(quote.updated * 1000).toISOString(), exchangeRateSource: quote.source } : {}),
+      message: quote.currency === "kwd"
+        ? "التجربة جاهزة بالدينار الكويتي. استخدم بطاقة الاختبار فقط؛ لا يوجد خصم حقيقي."
+        : "أسعار الموقع بالدينار الكويتي. Stripe سيعرض المقابل التجريبي بالدولار بسعر صرف منشور ومحدّث، مع تقريب كل باقة لأقرب سنت. لا يوجد خصم حقيقي.",
+    });
   } catch { res.json({ ready: false, testMode: true, message: unavailable }); }
 });
 router.post("/stripe/test-checkout", async (req, res): Promise<void> => {

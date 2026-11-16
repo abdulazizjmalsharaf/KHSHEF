@@ -23,3 +23,4 @@ export * from './invoiceExtraction';
 export * from './invoiceLine';
 export * from './invoiceTextInput';
 export * from './stripeTestStatus';
+export * from './stripeTestStatusCheckoutCurrency';

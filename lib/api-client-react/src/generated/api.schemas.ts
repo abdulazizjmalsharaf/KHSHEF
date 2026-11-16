@@ -5,10 +5,21 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type StripeTestStatusCheckoutCurrency = typeof StripeTestStatusCheckoutCurrency[keyof typeof StripeTestStatusCheckoutCurrency];
+
+
+export const StripeTestStatusCheckoutCurrency = {
+  kwd: 'kwd',
+  usd: 'usd',
+} as const;
+
 export interface StripeTestStatus {
   ready: boolean;
   testMode: true;
   message: string;
+  checkoutCurrency?: StripeTestStatusCheckoutCurrency;
+  exchangeRateUpdatedAt?: string;
+  exchangeRateSource?: string;
 }
 
 export type CheckoutInputPlanIdsItem = typeof CheckoutInputPlanIdsItem[keyof typeof CheckoutInputPlanIdsItem];

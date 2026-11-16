@@ -685,6 +685,9 @@ importers:
       '@replit/connectors-sdk':
         specifier: ^0.7.0
         version: 0.7.0
+      decimal.js:
+        specifier: ^10.6.0
+        version: 10.6.0
       pg:
         specifier: ^8.20.0
         version: 8.23.1

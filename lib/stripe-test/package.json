@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@replit/connectors-sdk": "^0.7.0",
+    "decimal.js": "^10.6.0",
     "pg": "^8.20.0"
   },
   "devDependencies": {

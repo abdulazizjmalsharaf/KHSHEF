@@ -11,7 +11,10 @@ import * as zod from 'zod';
 export const GetStripeTestStatusResponse = zod.object({
   "ready": zod.boolean(),
   "testMode": zod.literal(true),
-  "message": zod.string()
+  "message": zod.string(),
+  "checkoutCurrency": zod.enum(['kwd', 'usd']).optional(),
+  "exchangeRateUpdatedAt": zod.coerce.date().optional(),
+  "exchangeRateSource": zod.string().url().optional()
 })
 
 

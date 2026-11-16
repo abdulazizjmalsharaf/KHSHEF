@@ -5,9 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StripeTestStatusCheckoutCurrency } from './stripeTestStatusCheckoutCurrency';
 
 export interface StripeTestStatus {
   ready: boolean;
   testMode: true;
   message: string;
+  checkoutCurrency?: StripeTestStatusCheckoutCurrency;
+  exchangeRateUpdatedAt?: Date;
+  exchangeRateSource?: string;
 }

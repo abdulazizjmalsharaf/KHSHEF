@@ -147,6 +147,9 @@ components:
         ready: { type: boolean }
         testMode: { type: boolean, enum: [true] }
         message: { type: string }
+        checkoutCurrency: { type: string, enum: [kwd, usd] }
+        exchangeRateUpdatedAt: { type: string, format: date-time }
+        exchangeRateSource: { type: string, format: uri }
     CheckoutInput:
       type: object
       additionalProperties: false

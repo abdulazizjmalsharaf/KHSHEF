@@ -77,6 +77,16 @@ export function TestCheckoutPanel({ open, ids, onBusyChange }: Props) {
         )}
       </div>
 
+      {ready && status.data?.checkoutCurrency === 'usd' && (
+        <p className="text-xs leading-relaxed text-muted-foreground" data-testid="text-demo-exchange-rate">
+          التحويل حسب آخر سعر صرف منشور عند بدء التجربة، وليس سعر بنك مضمونًا.
+          {status.data.exchangeRateUpdatedAt && (
+            <> آخر تحديث: <time dateTime={status.data.exchangeRateUpdatedAt}>{new Date(status.data.exchangeRateUpdatedAt).toLocaleString('ar-KW', { dateStyle: 'medium', timeStyle: 'short' })}</time>.</>
+          )}{' '}
+          المصدر: <a className="underline underline-offset-2 hover:text-primary" href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">ExchangeRate-API</a>.
+        </p>
+      )}
+
       {error && <p role="alert" className="text-sm text-destructive" data-testid="status-checkout-error">{error}</p>}
 
       <button type="button" onClick={start} disabled={!canPay} aria-busy={busy} className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary font-semibold text-primary-foreground shadow-[0_10px_24px_-12px_hsl(186_62%_20%/0.8)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-stripe-test-checkout">
