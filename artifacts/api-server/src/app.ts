@@ -3,8 +3,6 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import cookieParser from "cookie-parser";
-import stripeWebhookRouter from "./routes/stripe-webhook";
 
 const app: Express = express();
 
@@ -28,8 +26,12 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(stripeWebhookRouter);
-app.use(cookieParser());
+// Payments are explicitly deferred. Even old links/webhooks cannot trigger Stripe
+// or Supabase synchronization until the user requests payment integration again.
+app.use("/api/stripe", (_req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.status(410).json({ error: "الدفع مؤجّل حاليًا. لا تتوفر عمليات دفع أو تفعيل اشتراكات." });
+});
 app.use(express.json({ limit: "64kb" }));
 app.use(express.urlencoded({ extended: true }));
 
