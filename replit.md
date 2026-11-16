@@ -48,7 +48,7 @@ Arithmetic uses exact decimals, half-up currency precision per line, then sums. 
 - Requested toolchain: Replit for work, GitHub for code, Vercel for publishing, Supabase for data/backend. Do not push or publish as part of the homepage-only step.
 - Supabase URL and anon key belong in Replit Secrets and Vercel environment variables, not source code.
 - Payments are not part of the MVP; if requested later, Stripe must use test mode.
-- The user approved monthly subscription prices in Kuwaiti dinars: مطعم صغير — 9 KWD; نمو — 24 KWD; سلسلة — 59 KWD. Plan entitlements and multi-plan subscription rules have not been specified; do not invent quotas or activate paid access.
+- The user approved monthly subscription prices in Kuwaiti dinars: مطعم صغير — 9 KWD; نمو — 24 KWD; سلسلة — 59 KWD. Multiple distinct plans may be selected in one subscription. Use the existing Supabase database for payment synchronization, never a replacement database. Plan entitlements have not been specified; do not invent quotas or activate paid access.
 
 ## Gotchas
 

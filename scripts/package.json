@@ -2,6 +2,7 @@
   "name": "@workspace/scripts",
   "version": "0.0.0",
   "private": true,
+  "dependencies": { "@workspace/stripe-test": "workspace:*" },
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",

@@ -3,6 +3,7 @@
   "compileOnSave": false,
   "files": [],
   "references": [
+    { "path": "./lib/stripe-test" },
     {
       "path": "./lib/integrations-openai-ai-server"
     },
