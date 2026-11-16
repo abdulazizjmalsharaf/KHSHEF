@@ -1,0 +1,2 @@
+alter table public.supplier_price_agreements
+  drop constraint if exists supplier_price_agreements_user_id_supplier_key_item_key_cur_key;

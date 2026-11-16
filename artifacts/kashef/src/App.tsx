@@ -7,6 +7,13 @@ import Home from '@/pages/home';
 import NotFound from '@/pages/not-found';
 import CheckoutReturn from '@/pages/checkout-return';
 import CheckoutCancel from '@/pages/checkout-cancel';
+import LoginPage from '@/pages/login';
+import InvoiceListPage from '@/pages/invoice-list';
+import NewInvoicePage from '@/pages/new-invoice';
+import InvoiceDetailPage from '@/pages/invoice-detail';
+import SupplierPricesPage from '@/pages/supplier-prices';
+import { AuthProvider } from '@/components/auth-provider';
+import { AuthGate } from '@/components/auth-gate';
 import {
   Route,
   Switch,
@@ -19,16 +26,30 @@ const queryClient = new QueryClient();
 
 function Router() {
   return (
-    // Keep a shared shell (sidebar, navbar) outside the boundary so it
-    // survives a page crash.
-    <RoutedErrorBoundary>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route path="/checkout/return" component={CheckoutReturn} />
-        <Route path="/checkout/cancel" component={CheckoutCancel} />
-        <Route component={NotFound} />
-      </Switch>
-    </RoutedErrorBoundary>
+    <AuthProvider>
+      {/* Keep the page boundary outside routes so it resets on navigation. */}
+      <RoutedErrorBoundary>
+        <Switch>
+          <Route path="/" component={Home} />
+          <Route path="/login" component={LoginPage} />
+          <Route path="/invoices/new">
+            <AuthGate><NewInvoicePage /></AuthGate>
+          </Route>
+          <Route path="/invoices/:invoiceId">
+            <AuthGate><InvoiceDetailPage /></AuthGate>
+          </Route>
+          <Route path="/supplier-prices">
+            <AuthGate><SupplierPricesPage /></AuthGate>
+          </Route>
+          <Route path="/invoices">
+            <AuthGate><InvoiceListPage /></AuthGate>
+          </Route>
+          <Route path="/checkout/return" component={CheckoutReturn} />
+          <Route path="/checkout/cancel" component={CheckoutCancel} />
+          <Route component={NotFound} />
+        </Switch>
+      </RoutedErrorBoundary>
+    </AuthProvider>
   );
 }
 

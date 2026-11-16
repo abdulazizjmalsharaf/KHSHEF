@@ -1,5 +1,6 @@
 import { ShoppingBag } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { Link } from 'wouter';
 import { ThemeToggle } from '@/components/theme-toggle';
 import type { Theme } from '@/hooks/use-theme';
 
@@ -7,6 +8,7 @@ const LINKS = [
   { href: '#top', label: 'الرئيسية', id: 'home' },
   { href: '#features', label: 'المميزات', id: 'features' },
   { href: '#plans', label: 'الباقات', id: 'plans' },
+  { href: '/invoices/new', label: 'فاتورة جديدة', id: 'invoice-new' },
 ];
 
 type Props = { theme: Theme; onToggleTheme: () => void; cartCount: number; onOpenCart: () => void; cta: ReactNode };
@@ -53,13 +55,23 @@ function NavLinks({ mobile = false }: { mobile?: boolean }) {
     <ul className={mobile ? 'mx-auto flex max-w-6xl justify-around px-3' : 'flex items-center gap-1'}>
       {LINKS.map((l) => (
         <li key={l.id}>
-          <a
-            href={l.href}
-            className={`nav-link relative inline-flex items-center rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mobile ? 'h-10 px-4' : 'h-9 px-3'}`}
-            data-testid={`link-nav-${l.id}${mobile ? '-mobile' : ''}`}
-          >
-            {l.label}
-          </a>
+          {l.href.startsWith('/') ? (
+            <Link
+              href={l.href}
+              className={`nav-link relative inline-flex items-center rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mobile ? 'h-10 px-4' : 'h-9 px-3'}`}
+              data-testid={`link-nav-${l.id}${mobile ? '-mobile' : ''}`}
+            >
+              {l.label}
+            </Link>
+          ) : (
+            <a
+              href={l.href}
+              className={`nav-link relative inline-flex items-center rounded-lg text-sm font-medium text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${mobile ? 'h-10 px-4' : 'h-9 px-3'}`}
+              data-testid={`link-nav-${l.id}${mobile ? '-mobile' : ''}`}
+            >
+              {l.label}
+            </a>
+          )}
         </li>
       ))}
     </ul>
