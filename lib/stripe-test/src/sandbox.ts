@@ -88,6 +88,9 @@ export class SandboxStripe {
     const catalog = await this.catalog(quote);
     const form = new URLSearchParams({
       mode: "subscription", "payment_method_types[0]": "card",
+      // Prevent Stripe from substituting the customer's geolocated currency.
+      // Site prices remain KWD; Stripe's hosted form must show our quoted USD amount.
+      "adaptive_pricing[enabled]": "false",
       success_url: `${origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout/cancel`,
       "metadata[kashef_test_checkout]": "true",
