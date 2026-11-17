@@ -12,42 +12,54 @@ export const GetStripeTestStatusResponse = zod.object({
   "ready": zod.boolean(),
   "testMode": zod.literal(true),
   "message": zod.string(),
-  "checkoutCurrency": zod.enum(['kwd', 'usd']).optional(),
-  "exchangeRateUpdatedAt": zod.coerce.date().optional(),
-  "exchangeRateSource": zod.string().url().optional()
+  "publishableKey": zod.string().nullable(),
+  "checkoutCurrency": zod.union([zod.literal('kwd'),zod.literal('usd'),zod.literal(null)]).nullable(),
+  "exchangeRateUpdatedAt": zod.coerce.date().nullable(),
+  "exchangeRateSource": zod.string().url().nullable()
 })
 
 
-export const createTestCheckoutBodyPlanIdsMax = 3;
+export const createTestPaymentIntentBodyPlanIdsMax = 3;
 
 
 
-export const CreateTestCheckoutBody = zod.object({
-  "planIds": zod.array(zod.enum(['small-restaurant', 'growth', 'chain'])).min(1).max(createTestCheckoutBodyPlanIdsMax),
+export const CreateTestPaymentIntentBody = zod.object({
+  "planIds": zod.array(zod.enum(['small-restaurant', 'growth', 'chain'])).min(1).max(createTestPaymentIntentBodyPlanIdsMax),
   "requestId": zod.string().uuid()
 })
 
-export const CreateTestCheckoutResponse = zod.object({
-  "url": zod.string(),
+export const createTestPaymentIntentResponsePaymentIntentIdMax = 255;
+
+
+export const createTestPaymentIntentResponsePaymentIntentIdRegExp = new RegExp('^pi_[A-Za-z0-9]+$');
+
+
+
+export const CreateTestPaymentIntentResponse = zod.object({
+  "clientSecret": zod.string(),
+  "paymentIntentId": zod.string().max(createTestPaymentIntentResponsePaymentIntentIdMax).regex(createTestPaymentIntentResponsePaymentIntentIdRegExp),
+  "amountKwdFils": zod.number().int().min(1),
+  "checkoutCurrency": zod.enum(['kwd', 'usd']),
+  "exchangeRateUpdatedAt": zod.coerce.date().nullable(),
   "testMode": zod.literal(true)
 })
 
 
-export const verifyTestCheckoutBodySessionIdMax = 255;
+export const verifyTestPaymentBodyPaymentIntentIdMax = 255;
 
 
-export const verifyTestCheckoutBodySessionIdRegExp = new RegExp('^cs_test_[a-zA-Z0-9]+$');
+export const verifyTestPaymentBodyPaymentIntentIdRegExp = new RegExp('^pi_[A-Za-z0-9]+$');
 
 
-export const VerifyTestCheckoutBody = zod.object({
-  "sessionId": zod.string().max(verifyTestCheckoutBodySessionIdMax).regex(verifyTestCheckoutBodySessionIdRegExp)
+export const VerifyTestPaymentBody = zod.object({
+  "paymentIntentId": zod.string().max(verifyTestPaymentBodyPaymentIntentIdMax).regex(verifyTestPaymentBodyPaymentIntentIdRegExp)
 })
 
-export const VerifyTestCheckoutResponse = zod.object({
-  "status": zod.enum(['paid', 'pending', 'expired']),
+export const VerifyTestPaymentResponse = zod.object({
+  "status": zod.enum(['paid', 'pending', 'failed']),
   "testMode": zod.literal(true),
   "message": zod.string(),
-  "planIds": zod.array(zod.string())
+  "planIds": zod.array(zod.enum(['small-restaurant', 'growth', 'chain']))
 })
 
 

@@ -21,24 +21,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/StripeTestStatus"
-  /stripe/test-checkout:
+  /stripe/payment-intent:
     post:
-      operationId: createTestCheckout
+      operationId: createTestPaymentIntent
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckoutInput"
+              $ref: "#/components/schemas/PaymentIntentInput"
       responses:
-        "200":
-          description: Stripe-hosted test checkout
+        "201":
+          description: Test-mode PaymentIntent for the embedded card form
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CheckoutRedirect"
+                $ref: "#/components/schemas/PaymentIntentConfig"
         "400":
           description: Invalid cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "403":
+          description: Cross-origin request rejected
           content:
             application/json:
               schema:
@@ -49,24 +55,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalysisError"
-  /stripe/test-verification:
+  /stripe/payment-verification:
     post:
-      operationId: verifyTestCheckout
+      operationId: verifyTestPayment
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckoutVerificationInput"
+              $ref: "#/components/schemas/PaymentVerificationInput"
       responses:
         "200":
-          description: Verified server-side checkout state
+          description: Verified test-mode PaymentIntent state
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/CheckoutVerification"
+                $ref: "#/components/schemas/PaymentVerification"
         "403":
-          description: Session not owned by this browser
+          description: PaymentIntent is not owned by this browser
           content:
             application/json:
               schema:
@@ -196,15 +202,16 @@ components:
   schemas:
     StripeTestStatus:
       type: object
-      required: [ready, testMode, message]
+      required: [ready, testMode, message, publishableKey, checkoutCurrency, exchangeRateUpdatedAt, exchangeRateSource]
       properties:
         ready: { type: boolean }
         testMode: { type: boolean, enum: [true] }
         message: { type: string }
-        checkoutCurrency: { type: string, enum: [kwd, usd] }
-        exchangeRateUpdatedAt: { type: string, format: date-time }
-        exchangeRateSource: { type: string, format: uri }
-    CheckoutInput:
+        publishableKey: { type: ["string", "null"] }
+        checkoutCurrency: { type: ["string", "null"], enum: [kwd, usd, null] }
+        exchangeRateUpdatedAt: { type: ["string", "null"], format: date-time }
+        exchangeRateSource: { type: ["string", "null"], format: uri }
+    PaymentIntentInput:
       type: object
       additionalProperties: false
       required: [planIds, requestId]
@@ -216,28 +223,32 @@ components:
           uniqueItems: true
           items: { type: string, enum: [small-restaurant, growth, chain] }
         requestId: { type: string, format: uuid }
-    CheckoutRedirect:
+    PaymentIntentConfig:
       type: object
-      required: [url, testMode]
+      required: [clientSecret, paymentIntentId, amountKwdFils, checkoutCurrency, exchangeRateUpdatedAt, testMode]
       properties:
-        url: { type: string }
+        clientSecret: { type: string }
+        paymentIntentId: { type: string, pattern: '^pi_[A-Za-z0-9]+$', maxLength: 255 }
+        amountKwdFils: { type: integer, minimum: 1 }
+        checkoutCurrency: { type: string, enum: [kwd, usd] }
+        exchangeRateUpdatedAt: { type: ["string", "null"], format: date-time }
         testMode: { type: boolean, enum: [true] }
-    CheckoutVerificationInput:
+    PaymentVerificationInput:
       type: object
       additionalProperties: false
-      required: [sessionId]
+      required: [paymentIntentId]
       properties:
-        sessionId: { type: string, pattern: '^cs_test_[a-zA-Z0-9]+$', maxLength: 255 }
-    CheckoutVerification:
+        paymentIntentId: { type: string, pattern: '^pi_[A-Za-z0-9]+$', maxLength: 255 }
+    PaymentVerification:
       type: object
       required: [status, testMode, message, planIds]
       properties:
-        status: { type: string, enum: [paid, pending, expired] }
+        status: { type: string, enum: [paid, pending, failed] }
         testMode: { type: boolean, enum: [true] }
         message: { type: string }
         planIds:
           type: array
-          items: { type: string }
+          items: { type: string, enum: [small-restaurant, growth, chain] }
     InvoiceTextInput:
       type: object
       additionalProperties: false

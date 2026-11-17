@@ -1,32 +1,54 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { requireTestKey, requireTestObject, TEST_PLANS } from "@workspace/stripe-test";
-import { isTestCheckoutUrl, ownsCheckout, signCheckout, validateCart } from "./stripe-test-security";
+import {
+  calculatePaymentAmount,
+  PAYMENT_PLANS,
+  validateTestKeys,
+} from "./stripe-payment";
+import {
+  ownsPaymentIntent,
+  signPaymentIntent,
+  validateCart,
+} from "./stripe-test-security";
 
-test("cart allows multiple distinct approved plans only", () => {
+test("cart allows only distinct approved monthly plans", () => {
   assert.equal(validateCart(["small-restaurant", "growth", "chain"]), true);
-  for (const ids of [[], ["growth", "growth"], ["unknown"], ["small-restaurant", "growth", "chain", "extra"]]) assert.equal(validateCart(ids), false);
+  for (const ids of [
+    [],
+    ["growth", "growth"],
+    ["unknown"],
+    ["small-restaurant", "growth", "chain", "extra"],
+    null,
+  ]) {
+    assert.equal(validateCart(ids), false);
+  }
 });
-test("approved KWD monthly amounts remain authoritative integer fils", () => {
-  assert.deepEqual(TEST_PLANS.map((p) => p.amount), [9000, 24000, 59000]);
-  assert.equal(TEST_PLANS.reduce((s, p) => s + p.amount, 0), 92000);
+
+test("approved monthly totals remain integer KWD fils", () => {
+  assert.deepEqual(PAYMENT_PLANS.map((plan) => plan.amountFils), [9_000, 24_000, 59_000]);
+  assert.equal(PAYMENT_PLANS.reduce((total, plan) => total + plan.amountFils, 0), 92_000);
 });
-test("rejects live and publishable keys and non-test Stripe objects", () => {
-  for (const prefix of ["sk_live_", "pk_test_", "pk_live_", ""]) assert.throws(() => requireTestKey(prefix));
-  assert.doesNotThrow(() => requireTestKey("sk_test_" + "synthetic"));
-  assert.throws(() => requireTestObject({ livemode: true }));
-  assert.throws(() => requireTestObject({}));
-  assert.doesNotThrow(() => requireTestObject({ livemode: false }));
+
+test("test credentials must both have test-mode prefixes", () => {
+  assert.equal(validateTestKeys("sk_test_synthetic", "pk_test_synthetic"), true);
+  assert.equal(validateTestKeys("sk_live_synthetic", "pk_test_synthetic"), false);
+  assert.equal(validateTestKeys("sk_test_synthetic", "pk_live_synthetic"), false);
+  assert.equal(validateTestKeys(undefined, "pk_test_synthetic"), false);
 });
-test("session id or forged proof alone never verifies payment ownership", () => {
+
+test("KWD amounts convert to USD cents using exact half-up rounding", () => {
+  const quote = { currency: "usd" as const, rate: "3.25", updated: 1_800_000_000, source: "https://www.exchangerate-api.com" };
+  assert.deepEqual(calculatePaymentAmount(["small-restaurant", "growth"], quote), {
+    amountKwdFils: 33_000,
+    stripeAmount: 10_725,
+  });
+});
+
+test("payment proof is bound to one intent and rejects forged values", () => {
   const secret = "synthetic-signing-secret-only";
-  const proof = signCheckout("cs_test_synthetic", secret);
-  assert.equal(ownsCheckout("cs_test_synthetic", proof, secret), true);
-  assert.equal(ownsCheckout("cs_test_other", proof, secret), false);
-  assert.equal(ownsCheckout("cs_test_synthetic", undefined, secret), false);
-  assert.equal(ownsCheckout("cs_test_synthetic", "forged", secret), false);
-});
-test("redirects only to HTTPS Stripe Checkout without credentials", () => {
-  assert.equal(isTestCheckoutUrl("https://checkout.stripe.com/c/pay/cs_test_synthetic"), true);
-  for (const url of ["https://checkout.stripe.com.evil.test", "http://checkout.stripe.com", "javascript:alert(1)", "https://user:pass@checkout.stripe.com", "", null]) assert.equal(isTestCheckoutUrl(url), false);
+  const proof = signPaymentIntent("pi_synthetic", secret);
+  assert.equal(ownsPaymentIntent("pi_synthetic", proof, secret), true);
+  assert.equal(ownsPaymentIntent("pi_other", proof, secret), false);
+  assert.equal(ownsPaymentIntent("pi_synthetic", undefined, secret), false);
+  assert.equal(ownsPaymentIntent("pi_synthetic", "forged", secret), false);
 });

@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type CheckoutInputPlanIdsItem = typeof CheckoutInputPlanIdsItem[keyof typeof CheckoutInputPlanIdsItem];
+export type PaymentVerificationPlanIdsItem = typeof PaymentVerificationPlanIdsItem[keyof typeof PaymentVerificationPlanIdsItem];
 
 
-export const CheckoutInputPlanIdsItem = {
+export const PaymentVerificationPlanIdsItem = {
   'small-restaurant': 'small-restaurant',
   growth: 'growth',
   chain: 'chain',

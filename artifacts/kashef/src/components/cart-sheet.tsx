@@ -15,7 +15,7 @@ export function CartSheet({ open, onOpenChange, items, totalFils, onRemove, onCl
         <SheetHeader className="flex-row items-start justify-between gap-3 space-y-0 border-b border-border p-5 text-right">
           <div>
             <SheetTitle className="font-display text-2xl text-primary">الباقات المختارة</SheetTitle>
-            <SheetDescription className="mt-1">راجع الباقات وجرّب Stripe Checkout ببطاقة اختبار، بدون خصم حقيقي.</SheetDescription>
+            <SheetDescription className="mt-1">راجع الباقات وأكمل نموذج الدفع التجريبي هنا، بدون مغادرة الموقع.</SheetDescription>
           </div>
           <SheetClose disabled={busy} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50" aria-label="إغلاق السلة" data-testid="button-close-cart">
             <X className="h-5 w-5" aria-hidden />

@@ -11,7 +11,12 @@ export interface StripeTestStatus {
   ready: boolean;
   testMode: true;
   message: string;
-  checkoutCurrency?: StripeTestStatusCheckoutCurrency;
-  exchangeRateUpdatedAt?: Date;
-  exchangeRateSource?: string;
+  /** @nullable */
+  publishableKey: string | null;
+  /** @nullable */
+  checkoutCurrency: StripeTestStatusCheckoutCurrency;
+  /** @nullable */
+  exchangeRateUpdatedAt: Date | null;
+  /** @nullable */
+  exchangeRateSource: string | null;
 }

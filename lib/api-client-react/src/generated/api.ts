@@ -26,14 +26,14 @@ import type {
 
 import type {
   AnalysisError,
-  CheckoutInput,
-  CheckoutRedirect,
-  CheckoutVerification,
-  CheckoutVerificationInput,
   HealthStatus,
   InvoiceAnalysis,
   InvoiceFileInput,
   InvoiceTextInput,
+  PaymentIntentConfig,
+  PaymentIntentInput,
+  PaymentVerification,
+  PaymentVerificationInput,
   StripeTestStatus
 } from './api.schemas';
 
@@ -159,15 +159,15 @@ export function useGetStripeTestStatus<TData = Awaited<ReturnType<typeof getStri
 
 
 
-export const getCreateTestCheckoutUrl = () => {
+export const getCreateTestPaymentIntentUrl = () => {
 
 
 
 
-  return `/api/stripe/test-checkout`
+  return `/api/stripe/payment-intent`
 }
 
-export const createTestCheckout = async (checkoutInput: CheckoutInput, options?: Parameters<typeof customFetch>[1]): Promise<CheckoutRedirect> => {
+export const createTestPaymentIntent = async (paymentIntentInput: PaymentIntentInput, options?: Parameters<typeof customFetch>[1]): Promise<PaymentIntentConfig> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -183,12 +183,12 @@ export const createTestCheckout = async (checkoutInput: CheckoutInput, options?:
     }
     return headers;
   };
-return customFetch<CheckoutRedirect>(getCreateTestCheckoutUrl(),
+return customFetch<PaymentIntentConfig>(getCreateTestPaymentIntentUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(checkoutInput)
+    body: JSON.stringify(paymentIntentInput)
   }
 );}
 
@@ -196,13 +196,13 @@ return customFetch<CheckoutRedirect>(getCreateTestCheckoutUrl(),
 
 
 
-export const getCreateTestCheckoutMutationKey = () => ['createTestCheckout'] as const;
+export const getCreateTestPaymentIntentMutationKey = () => ['createTestPaymentIntent'] as const;
 
-export const getCreateTestCheckoutMutationOptions = <TError = ErrorType<AnalysisError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTestCheckout>>, TError,CreateTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createTestCheckout>>, TError,CreateTestCheckoutMutationVariables, TContext> => {
+export const getCreateTestPaymentIntentMutationOptions = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTestPaymentIntent>>, TError,CreateTestPaymentIntentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createTestPaymentIntent>>, TError,CreateTestPaymentIntentMutationVariables, TContext> => {
 
-const mutationKey = getCreateTestCheckoutMutationKey();
+const mutationKey = getCreateTestPaymentIntentMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -212,10 +212,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTestCheckout>>, CreateTestCheckoutMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createTestPaymentIntent>>, CreateTestPaymentIntentMutationVariables> = (props) => {
           const {data} = props ?? {};
 
-          return  createTestCheckout(data,requestOptions)
+          return  createTestPaymentIntent(data,requestOptions)
         }
 
 
@@ -225,31 +225,31 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type CreateTestCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof createTestCheckout>>>
-    export type CreateTestCheckoutMutationBody = BodyType<CheckoutInput>
-    export type CreateTestCheckoutMutationError = ErrorType<AnalysisError>
-    export type CreateTestCheckoutMutationVariables = {data: BodyType<CheckoutInput>}
+    export type CreateTestPaymentIntentMutationResult = NonNullable<Awaited<ReturnType<typeof createTestPaymentIntent>>>
+    export type CreateTestPaymentIntentMutationBody = BodyType<PaymentIntentInput>
+    export type CreateTestPaymentIntentMutationError = ErrorType<AnalysisError>
+    export type CreateTestPaymentIntentMutationVariables = {data: BodyType<PaymentIntentInput>}
 
-    export const useCreateTestCheckout = <TError = ErrorType<AnalysisError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTestCheckout>>, TError,CreateTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+    export const useCreateTestPaymentIntent = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTestPaymentIntent>>, TError,CreateTestPaymentIntentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof createTestCheckout>>,
+        Awaited<ReturnType<typeof createTestPaymentIntent>>,
         TError,
-        CreateTestCheckoutMutationVariables,
+        CreateTestPaymentIntentMutationVariables,
         TContext
       > => {
-      return useMutation(getCreateTestCheckoutMutationOptions(options), queryClient);
+      return useMutation(getCreateTestPaymentIntentMutationOptions(options), queryClient);
     }
 
-export const getVerifyTestCheckoutUrl = () => {
+export const getVerifyTestPaymentUrl = () => {
 
 
 
 
-  return `/api/stripe/test-verification`
+  return `/api/stripe/payment-verification`
 }
 
-export const verifyTestCheckout = async (checkoutVerificationInput: CheckoutVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<CheckoutVerification> => {
+export const verifyTestPayment = async (paymentVerificationInput: PaymentVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<PaymentVerification> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -265,12 +265,12 @@ export const verifyTestCheckout = async (checkoutVerificationInput: CheckoutVeri
     }
     return headers;
   };
-return customFetch<CheckoutVerification>(getVerifyTestCheckoutUrl(),
+return customFetch<PaymentVerification>(getVerifyTestPaymentUrl(),
   {
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(checkoutVerificationInput)
+    body: JSON.stringify(paymentVerificationInput)
   }
 );}
 
@@ -278,13 +278,13 @@ return customFetch<CheckoutVerification>(getVerifyTestCheckoutUrl(),
 
 
 
-export const getVerifyTestCheckoutMutationKey = () => ['verifyTestCheckout'] as const;
+export const getVerifyTestPaymentMutationKey = () => ['verifyTestPayment'] as const;
 
-export const getVerifyTestCheckoutMutationOptions = <TError = ErrorType<AnalysisError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyTestCheckout>>, TError,VerifyTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof verifyTestCheckout>>, TError,VerifyTestCheckoutMutationVariables, TContext> => {
+export const getVerifyTestPaymentMutationOptions = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyTestPayment>>, TError,VerifyTestPaymentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof verifyTestPayment>>, TError,VerifyTestPaymentMutationVariables, TContext> => {
 
-const mutationKey = getVerifyTestCheckoutMutationKey();
+const mutationKey = getVerifyTestPaymentMutationKey();
 const {mutation: mutationOptions, request: requestOptions} = options ?
       options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
       options
@@ -294,10 +294,10 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
 
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyTestCheckout>>, VerifyTestCheckoutMutationVariables> = (props) => {
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof verifyTestPayment>>, VerifyTestPaymentMutationVariables> = (props) => {
           const {data} = props ?? {};
 
-          return  verifyTestCheckout(data,requestOptions)
+          return  verifyTestPayment(data,requestOptions)
         }
 
 
@@ -307,20 +307,20 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
   return  { mutationFn, ...mutationOptions }}
 
-    export type VerifyTestCheckoutMutationResult = NonNullable<Awaited<ReturnType<typeof verifyTestCheckout>>>
-    export type VerifyTestCheckoutMutationBody = BodyType<CheckoutVerificationInput>
-    export type VerifyTestCheckoutMutationError = ErrorType<AnalysisError>
-    export type VerifyTestCheckoutMutationVariables = {data: BodyType<CheckoutVerificationInput>}
+    export type VerifyTestPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof verifyTestPayment>>>
+    export type VerifyTestPaymentMutationBody = BodyType<PaymentVerificationInput>
+    export type VerifyTestPaymentMutationError = ErrorType<AnalysisError>
+    export type VerifyTestPaymentMutationVariables = {data: BodyType<PaymentVerificationInput>}
 
-    export const useVerifyTestCheckout = <TError = ErrorType<AnalysisError>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyTestCheckout>>, TError,VerifyTestCheckoutMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+    export const useVerifyTestPayment = <TError = ErrorType<AnalysisError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof verifyTestPayment>>, TError,VerifyTestPaymentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  , queryClient?: QueryClient): UseMutationResult<
-        Awaited<ReturnType<typeof verifyTestCheckout>>,
+        Awaited<ReturnType<typeof verifyTestPayment>>,
         TError,
-        VerifyTestCheckoutMutationVariables,
+        VerifyTestPaymentMutationVariables,
         TContext
       > => {
-      return useMutation(getVerifyTestCheckoutMutationOptions(options), queryClient);
+      return useMutation(getVerifyTestPaymentMutationOptions(options), queryClient);
     }
 
 export const getAnalyzeInvoiceUrl = () => {

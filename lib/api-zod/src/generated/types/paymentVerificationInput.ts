@@ -6,10 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CheckoutVerificationInput {
+export interface PaymentVerificationInput {
   /**
      * @maxLength 255
-     * @pattern ^cs_test_[a-zA-Z0-9]+$
+     * @pattern ^pi_[A-Za-z0-9]+$
      */
-  sessionId: string;
+  paymentIntentId: string;
 }

@@ -5,7 +5,10 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export type StripeTestStatusCheckoutCurrency = typeof StripeTestStatusCheckoutCurrency[keyof typeof StripeTestStatusCheckoutCurrency];
+/**
+ * @nullable
+ */
+export type StripeTestStatusCheckoutCurrency = typeof StripeTestStatusCheckoutCurrency[keyof typeof StripeTestStatusCheckoutCurrency] | null;
 
 
 export const StripeTestStatusCheckoutCurrency = {
@@ -17,56 +20,88 @@ export interface StripeTestStatus {
   ready: boolean;
   testMode: true;
   message: string;
-  checkoutCurrency?: StripeTestStatusCheckoutCurrency;
-  exchangeRateUpdatedAt?: string;
-  exchangeRateSource?: string;
+  /** @nullable */
+  publishableKey: string | null;
+  /** @nullable */
+  checkoutCurrency: StripeTestStatusCheckoutCurrency;
+  /** @nullable */
+  exchangeRateUpdatedAt: string | null;
+  /** @nullable */
+  exchangeRateSource: string | null;
 }
 
-export type CheckoutInputPlanIdsItem = typeof CheckoutInputPlanIdsItem[keyof typeof CheckoutInputPlanIdsItem];
+export type PaymentIntentInputPlanIdsItem = typeof PaymentIntentInputPlanIdsItem[keyof typeof PaymentIntentInputPlanIdsItem];
 
 
-export const CheckoutInputPlanIdsItem = {
+export const PaymentIntentInputPlanIdsItem = {
   'small-restaurant': 'small-restaurant',
   growth: 'growth',
   chain: 'chain',
 } as const;
 
-export interface CheckoutInput {
+export interface PaymentIntentInput {
   /**
      * @minItems 1
      * @maxItems 3
      */
-  planIds: CheckoutInputPlanIdsItem[];
+  planIds: PaymentIntentInputPlanIdsItem[];
   requestId: string;
 }
 
-export interface CheckoutRedirect {
-  url: string;
-  testMode: true;
-}
-
-export interface CheckoutVerificationInput {
-  /**
-     * @maxLength 255
-     * @pattern ^cs_test_[a-zA-Z0-9]+$
-     */
-  sessionId: string;
-}
-
-export type CheckoutVerificationStatus = typeof CheckoutVerificationStatus[keyof typeof CheckoutVerificationStatus];
+export type PaymentIntentConfigCheckoutCurrency = typeof PaymentIntentConfigCheckoutCurrency[keyof typeof PaymentIntentConfigCheckoutCurrency];
 
 
-export const CheckoutVerificationStatus = {
-  paid: 'paid',
-  pending: 'pending',
-  expired: 'expired',
+export const PaymentIntentConfigCheckoutCurrency = {
+  kwd: 'kwd',
+  usd: 'usd',
 } as const;
 
-export interface CheckoutVerification {
-  status: CheckoutVerificationStatus;
+export interface PaymentIntentConfig {
+  clientSecret: string;
+  /**
+     * @maxLength 255
+     * @pattern ^pi_[A-Za-z0-9]+$
+     */
+  paymentIntentId: string;
+  /** @minimum 1 */
+  amountKwdFils: number;
+  checkoutCurrency: PaymentIntentConfigCheckoutCurrency;
+  /** @nullable */
+  exchangeRateUpdatedAt: string | null;
+  testMode: true;
+}
+
+export interface PaymentVerificationInput {
+  /**
+     * @maxLength 255
+     * @pattern ^pi_[A-Za-z0-9]+$
+     */
+  paymentIntentId: string;
+}
+
+export type PaymentVerificationStatus = typeof PaymentVerificationStatus[keyof typeof PaymentVerificationStatus];
+
+
+export const PaymentVerificationStatus = {
+  paid: 'paid',
+  pending: 'pending',
+  failed: 'failed',
+} as const;
+
+export type PaymentVerificationPlanIdsItem = typeof PaymentVerificationPlanIdsItem[keyof typeof PaymentVerificationPlanIdsItem];
+
+
+export const PaymentVerificationPlanIdsItem = {
+  'small-restaurant': 'small-restaurant',
+  growth: 'growth',
+  chain: 'chain',
+} as const;
+
+export interface PaymentVerification {
+  status: PaymentVerificationStatus;
   testMode: true;
   message: string;
-  planIds: string[];
+  planIds: PaymentVerificationPlanIdsItem[];
 }
 
 export interface InvoiceTextInput {

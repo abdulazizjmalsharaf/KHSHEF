@@ -35,6 +35,7 @@ function inspectWrapper(raw: string | undefined, name: string) {
 console.info(JSON.stringify({
   database: inspectDatabase(),
   databaseFormat: inspectWrapper(process.env.SUPABASE_DATABASE_URL, "SUPABASE_DATABASE_URL"),
-  stripeTestKeyPresent: /^sk_test_/.test(process.env.STRIPE_SECRET_KEY ?? ""),
-  stripeFormat: inspectWrapper(process.env.STRIPE_SECRET_KEY, "STRIPE_SECRET_KEY"),
+  stripeTestKeyPresent: /^sk_test_/.test(process.env.TEST_STRIPE_SECRET_KEY ?? ""),
+  stripePublishableKeyPresent: /^pk_test_/.test(process.env.TEST_STRIPE_PUBLISHABLE_KEY ?? ""),
+  stripeFormat: inspectWrapper(process.env.TEST_STRIPE_SECRET_KEY, "TEST_STRIPE_SECRET_KEY"),
 }));

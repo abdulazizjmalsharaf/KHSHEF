@@ -5,13 +5,13 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { CheckoutInputPlanIdsItem } from './checkoutInputPlanIdsItem';
+import type { PaymentIntentInputPlanIdsItem } from './paymentIntentInputPlanIdsItem';
 
-export interface CheckoutInput {
+export interface PaymentIntentInput {
   /**
      * @minItems 1
      * @maxItems 3
      */
-  planIds: CheckoutInputPlanIdsItem[];
+  planIds: PaymentIntentInputPlanIdsItem[];
   requestId: string;
 }

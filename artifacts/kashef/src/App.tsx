@@ -5,8 +5,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import Home from '@/pages/home';
 import NotFound from '@/pages/not-found';
-import CheckoutReturn from '@/pages/checkout-return';
-import CheckoutCancel from '@/pages/checkout-cancel';
 import LoginPage from '@/pages/login';
 import InvoiceListPage from '@/pages/invoice-list';
 import NewInvoicePage from '@/pages/new-invoice';
@@ -44,8 +42,6 @@ function Router() {
           <Route path="/invoices">
             <AuthGate><InvoiceListPage /></AuthGate>
           </Route>
-          <Route path="/checkout/return" component={CheckoutReturn} />
-          <Route path="/checkout/cancel" component={CheckoutCancel} />
           <Route component={NotFound} />
         </Switch>
       </RoutedErrorBoundary>

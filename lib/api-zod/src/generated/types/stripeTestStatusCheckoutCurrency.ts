@@ -6,7 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type StripeTestStatusCheckoutCurrency = typeof StripeTestStatusCheckoutCurrency[keyof typeof StripeTestStatusCheckoutCurrency];
+/**
+ * @nullable
+ */
+export type StripeTestStatusCheckoutCurrency = typeof StripeTestStatusCheckoutCurrency[keyof typeof StripeTestStatusCheckoutCurrency] | null;
 
 
 export const StripeTestStatusCheckoutCurrency = {
