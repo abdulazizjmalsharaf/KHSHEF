@@ -36,6 +36,7 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
           <nav aria-label="التنقل في مساحة كاشف" className="order-3 flex w-full items-center justify-center gap-1 sm:order-none sm:w-auto sm:gap-2">
             <Link href="/invoices" className="inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3 sm:text-sm" data-testid="link-workspace-invoices">الفواتير</Link>
             <Link href="/supplier-prices" className="inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3 sm:text-sm" data-testid="link-workspace-supplier-prices">أسعار الموردين</Link>
+            <Link href="/suppliers" className="inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3 sm:text-sm" data-testid="link-workspace-suppliers">الموردون</Link>
           </nav>
           <div className="hidden items-center gap-2 rounded-full border border-primary/15 bg-background px-3 py-2 text-xs text-muted-foreground lg:flex" data-testid="text-private-workspace">
             <LockKeyhole className="h-3.5 w-3.5 text-primary" aria-hidden />

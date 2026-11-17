@@ -298,7 +298,9 @@ export function useSaveSupplierPrice(userId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
+      id?: string;
       supplierName: string;
+      supplierId?: string | null;
       itemName: string;
       unit: string;
       unitPrice: string;
@@ -310,25 +312,45 @@ export function useSaveSupplierPrice(userId: string) {
       if (!supplierName || !itemName || !unitPrice || !Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0) {
         throw new Error('أدخل اسم المورد والصنف وسعراً صحيحاً غير سالب.');
       }
-      const supplierKey = normalizeKey(supplierName);
+      const supabase = getSupabaseClient();
+      let savedSupplierName = supplierName;
+      let supplierKey = normalizeKey(supplierName);
+      if (input.supplierId) {
+        const { data: supplier, error: supplierError } = await supabase.from('suppliers')
+          .select('id, name, supplier_key')
+          .eq('id', input.supplierId)
+          .single();
+        if (supplierError || !supplier) {
+          throw new Error('المورد غير متاح في حسابك. حدّث القائمة ثم حاول مرة أخرى.');
+        }
+        savedSupplierName = supplier.name;
+        supplierKey = supplier.supplier_key || normalizeKey(supplier.name);
+      }
       const itemKey = normalizeKey(itemName);
       if (!supplierKey || !itemKey) throw new Error('اسم المورد أو الصنف غير صالح.');
-      const supabase = getSupabaseClient();
-      const { data, error } = await supabase.from('supplier_price_agreements')
-        .upsert({
-          user_id: userId,
-          supplier_name: supplierName,
-          supplier_key: supplierKey,
-          item_name: itemName,
-          item_key: itemKey,
-          unit: input.unit.trim() || null,
-          unit_key: normalizeKey(input.unit),
-          unit_price: unitPrice,
-          currency: (input.currency || 'KWD').toUpperCase(),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id,supplier_key,item_key,unit_key,currency' })
-        .select('*')
-        .single();
+      const values = {
+        user_id: userId,
+        supplier_id: input.supplierId || null,
+        supplier_name: savedSupplierName,
+        supplier_key: supplierKey,
+        item_name: itemName,
+        item_key: itemKey,
+        unit: input.unit.trim() || null,
+        unit_key: normalizeKey(input.unit),
+        unit_price: unitPrice,
+        currency: (input.currency || 'KWD').toUpperCase(),
+        updated_at: new Date().toISOString(),
+      };
+      const { data, error } = input.id
+        ? await supabase.from('supplier_price_agreements')
+          .update(values)
+          .eq('id', input.id)
+          .select('*')
+          .single()
+        : await supabase.from('supplier_price_agreements')
+          .upsert(values, { onConflict: 'user_id,supplier_key,item_key,unit_key,currency' })
+          .select('*')
+          .single();
       if (error) throw error;
       return data as SupplierPriceRow;
     },

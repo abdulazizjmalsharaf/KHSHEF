@@ -99,6 +99,7 @@ export type InvoiceListRow = Pick<
 
 export type SupplierPriceRow = {
   id: string;
+  supplier_id?: string | null;
   supplier_name: string;
   supplier_key: string;
   item_name: string;
@@ -106,5 +107,15 @@ export type SupplierPriceRow = {
   unit: string | null;
   unit_price: string | number;
   currency: string;
+  updated_at: string;
+};
+
+export type SupplierRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  supplier_key: string | null;
+  contact_phone: string | null;
+  created_at: string;
   updated_at: string;
 };

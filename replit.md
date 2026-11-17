@@ -25,13 +25,16 @@
 ## Where things live
 
 - `supabase/migrations/` — Supabase schema migrations, applied through Supabase, not Replit's managed database.
-- `artifacts/kashef/src/lib/suppliers.ts` — authenticated supplier insert using the current Supabase session.
+- `artifacts/kashef/src/lib/suppliers.ts` and `src/hooks/use-suppliers.ts` — authenticated supplier CRUD and temporary price-list upload handling.
 - `supabase/migrations/20261118090000_company_profiles_and_owner_suppliers.sql` — additive company-profile schema and private supplier RLS; review and apply through Supabase separately.
+- `supabase/migrations/20261118100000_supplier_management_and_price_import.sql` — supplier contact fields, owner-linked prices, private temporary import storage, and atomic import acceptance; apply after the company-auth migration.
 - `supabase/functions/invoice-review/` — authenticated invoice extraction and deterministic checks; it reads files from the private bucket using the caller's JWT and never uses a service-role key.
+- `supabase/functions/supplier-price-import/` — authenticated image and Excel parsing for price lists. Temporary files are private and removed after parsing; extracted prices are not saved until the owner confirms them.
 
 ## Architecture decisions
 
-- Supplier rows and company profiles are private to their owner through RLS. Legacy anonymous supplier rows remain in place without an owner and are not exposed to accounts.
+- Supplier rows and company profiles are private to their owner through RLS. Legacy anonymous supplier rows remain in place without an owner and are not exposed to accounts. Deleting a supplier keeps its saved price rows, but removes their supplier link.
+- Agreed prices remain owner-scoped and link to a supplier when selected. Image lists use the Supabase Edge Function and `OPENAI_API_KEY`; Excel lists are parsed server-side. The import review must confirm the values are KWD before an atomic save.
 - The invoice workspace is an authenticated surface at `/app`. Invoice rows, line items, agreed supplier prices, and private documents are restricted to the signed-in user's Supabase identity with RLS and storage policies. The browser uses only the publishable key.
 - Google OAuth and email redirect URLs must be configured in Supabase for sign-in and recovery. The Edge Function's `OPENAI_API_KEY` belongs in Supabase Function secrets. Never put provider secrets in source code or GitHub.
 

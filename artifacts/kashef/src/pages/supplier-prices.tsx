@@ -1,276 +1,1313 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { Link } from 'wouter';
-import { AlertCircle, Check, ChevronLeft, CircleDollarSign, PencilLine, Plus, RotateCcw, ShieldCheck, Trash2, X } from 'lucide-react';
-import { useAuth } from '@/components/auth-provider';
-import { useDeleteSupplierPrice, useSaveSupplierPrice, useSupplierPrices } from '@/hooks/use-invoices';
-import type { SupplierPriceRow } from '@/lib/invoice-types';
-import { PageIntro, QueryProblem, WorkspaceFrame } from '@/pages/invoice-workspace';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { Link } from "wouter";
+import {
+  AlertCircle,
+  Check,
+  ChevronLeft,
+  CircleDollarSign,
+  FileSpreadsheet,
+  Image as ImageIcon,
+  PencilLine,
+  Plus,
+  RotateCcw,
+  ShieldCheck,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { useAuth } from "@/components/auth-provider";
+import {
+  useDeleteSupplierPrice,
+  useSaveSupplierPrice,
+  useSupplierPrices,
+} from "@/hooks/use-invoices";
+import {
+  useImportSupplierPriceList,
+  useSaveSupplierPriceImport,
+  useSuppliers,
+} from "@/hooks/use-suppliers";
+import type { SupplierPriceRow } from "@/lib/invoice-types";
+import {
+  PageIntro,
+  QueryProblem,
+  WorkspaceFrame,
+} from "@/pages/invoice-workspace";
 
-type PriceFormValues = {
-  supplierName: string;
+type PriceForm = {
+  supplierId: string;
   itemName: string;
   unit: string;
   unitPrice: string;
   currency: string;
 };
-
-const blankValues: PriceFormValues = {
-  supplierName: '',
-  itemName: '',
-  unit: '',
-  unitPrice: '',
-  currency: 'KWD',
+type ReviewRow = {
+  key: string;
+  itemName: string;
+  unit: string;
+  unitPrice: string;
+  confidence: number;
 };
-
-const supportedCurrencies = [
-  { value: 'KWD', label: 'دينار كويتي · KWD' },
-  { value: 'SAR', label: 'ريال سعودي · SAR' },
-  { value: 'BHD', label: 'دينار بحريني · BHD' },
-  { value: 'USD', label: 'دولار أمريكي · USD' },
-];
+const blankForm: PriceForm = {
+  supplierId: "",
+  itemName: "",
+  unit: "",
+  unitPrice: "",
+  currency: "KWD",
+};
+const currencies = ["KWD", "SAR", "BHD", "USD"];
 
 function formatPrice(price: string | number, currency: string) {
-  const digits = currency === 'KWD' || currency === 'BHD' ? 3 : 2;
+  const digits = currency === "KWD" || currency === "BHD" ? 3 : 2;
   const amount = Number(price);
-  if (!Number.isFinite(amount)) return `${price} ${currency}`;
-  return `${new Intl.NumberFormat('ar-KW', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount)} ${currency}`;
+  return Number.isFinite(amount)
+    ? `${new Intl.NumberFormat("ar-KW", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount)} ${currency}`
+    : `${price} ${currency}`;
 }
 
-function supplierPriceValues(row: SupplierPriceRow): PriceFormValues {
-  return {
-    supplierName: row.supplier_name,
-    itemName: row.item_name,
-    unit: row.unit ?? '',
-    unitPrice: String(row.unit_price),
-    currency: row.currency || 'KWD',
-  };
+function formatUpdatedAt(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "غير معروف"
+    : new Intl.DateTimeFormat("ar-KW", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }).format(date);
 }
 
 export default function SupplierPricesPage() {
   const { user, loading: authLoading } = useAuth();
   const prices = useSupplierPrices(user?.id);
-  const savePrice = useSaveSupplierPrice(user?.id ?? '');
+  const suppliers = useSuppliers(user?.id);
+  const savePrice = useSaveSupplierPrice(user?.id ?? "");
   const deletePrice = useDeleteSupplierPrice(user?.id);
+  const importList = useImportSupplierPriceList(user?.id);
+  const saveImport = useSaveSupplierPriceImport(user?.id);
   const [editing, setEditing] = useState<SupplierPriceRow | null>(null);
   const [deleting, setDeleting] = useState<SupplierPriceRow | null>(null);
-  const [formError, setFormError] = useState('');
-  const [actionError, setActionError] = useState('');
-  const [savedNotice, setSavedNotice] = useState('');
-  const form = useForm<PriceFormValues>({ defaultValues: blankValues });
+  const [form, setForm] = useState<PriceForm>(blankForm);
+  const [formError, setFormError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [reviewRows, setReviewRows] = useState<ReviewRow[]>([]);
+  const [reviewed, setReviewed] = useState(false);
+  const [importSupplierId, setImportSupplierId] = useState("");
+  const [confirmedKwd, setConfirmedKwd] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importNotice, setImportNotice] = useState("");
+
+  useEffect(() => {
+    if (
+      !file ||
+      (!file.type.startsWith("image/") &&
+        !/\.(jpe?g|png|webp)$/i.test(file.name))
+    ) {
+      setPreviewUrl("");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   const resetForm = () => {
-    form.reset(blankValues);
     setEditing(null);
-    setFormError('');
-    setSavedNotice('');
+    setForm(blankForm);
+    setFormError("");
   };
 
   const startEdit = (row: SupplierPriceRow) => {
     setEditing(row);
-    form.reset(supplierPriceValues(row));
-    setFormError('');
-    setSavedNotice('');
-    setActionError('');
+    setForm({
+      supplierId: row.supplier_id ?? "__unlinked",
+      itemName: row.item_name,
+      unit: row.unit ?? "",
+      unitPrice: String(row.unit_price),
+      currency: row.currency || "KWD",
+    });
+    setFormError("");
+    setNotice("");
+    setActionError("");
   };
 
-  const submit = form.handleSubmit(async (values) => {
-    setFormError('');
-    setSavedNotice('');
-    setActionError('');
+  const submitPrice = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError("");
+    setNotice("");
+    setActionError("");
+    const supplier = suppliers.data?.find(
+      (entry) => entry.id === form.supplierId,
+    );
+    const keepUnlinked = Boolean(
+      editing && (!form.supplierId || form.supplierId === "__unlinked"),
+    );
+    if (!supplier && !keepUnlinked) {
+      setFormError("اختر موردًا محفوظًا لربط السعر به.");
+      return;
+    }
     try {
-      const saved = await savePrice.mutateAsync({
-        supplierName: values.supplierName,
-        itemName: values.itemName,
-        unit: values.unit,
-        unitPrice: values.unitPrice,
-        currency: values.currency || 'KWD',
+      await savePrice.mutateAsync({
+        id: editing?.id,
+        supplierName: supplier?.name ?? editing?.supplier_name ?? "",
+        supplierId: supplier?.id ?? null,
+        itemName: form.itemName,
+        unit: form.unit,
+        unitPrice: form.unitPrice,
+        currency: form.currency,
       });
-      if (editing && saved.id !== editing.id) {
-        try {
-          await deletePrice.mutateAsync(editing.id);
-        } catch {
-          setActionError('تم حفظ السعر الجديد، لكن تعذر حذف السجل السابق. راجعه في القائمة وأزله عند التأكد.');
-          setSavedNotice('تم حفظ السعر المعدّل.');
-          resetForm();
-          return;
-        }
-      }
-      setSavedNotice(editing ? 'تم تحديث السعر المتفق عليه.' : 'تمت إضافة السعر المتفق عليه.');
+      setNotice(
+        editing
+          ? "تم تحديث السعر المتفق عليه."
+          : "تمت إضافة السعر المتفق عليه.",
+      );
       resetForm();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'تعذر حفظ السعر. تحقق من البيانات ثم حاول مجددًا.');
+      setFormError(
+        error instanceof Error
+          ? error.message
+          : "تعذر حفظ السعر. تحقق من البيانات ثم حاول مجددًا.",
+      );
     }
-  });
+  };
+
+  const selectFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const selected = event.target.files?.[0] ?? null;
+    event.currentTarget.value = "";
+    setFile(selected);
+    setReviewRows([]);
+    setReviewed(false);
+    setConfirmedKwd(false);
+    setImportError("");
+    setImportNotice("");
+    importList.reset();
+  };
+
+  const runImport = async () => {
+    if (!file) return;
+    setImportError("");
+    setImportNotice("");
+    setReviewed(false);
+    try {
+      const result = await importList.mutateAsync(file);
+      setReviewRows(
+        result.items.map((item, index) => ({
+          key: `${Date.now()}-${index}`,
+          itemName: item.itemName,
+          unit: item.unit ?? "",
+          unitPrice: item.unitPrice ?? "",
+          confidence: item.confidence,
+        })),
+      );
+      const matched = suppliers.data?.find(
+        (entry) =>
+          entry.name.trim().toLocaleLowerCase() ===
+          result.supplierName?.trim().toLocaleLowerCase(),
+      );
+      setImportSupplierId(matched?.id ?? "");
+      setImportNotice(
+        "اكتملت القراءة. راجع الصفوف قبل اعتمادها؛ لم يتم حفظ أي سعر.",
+      );
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? error.message
+          : "تعذرت قراءة الملف. تحقق منه وحاول مرة أخرى.",
+      );
+    }
+  };
+
+  const confirmReview = () => {
+    if (!reviewRows.length) {
+      setImportError("أبقِ صفًا واحدًا على الأقل قبل متابعة المراجعة.");
+      return;
+    }
+    setReviewed(true);
+    setImportError("");
+    setImportNotice(
+      "أصبحت الصفوف جاهزة للتحرير. راجع كل اسم ووحدة وسعر قبل الحفظ.",
+    );
+  };
+
+  const saveReviewedImport = async () => {
+    setImportError("");
+    setImportNotice("");
+    if (!reviewed) {
+      setImportError("راجع القائمة أولًا قبل الحفظ.");
+      return;
+    }
+    if (!importSupplierId) {
+      setImportError("اختر المورد المحفوظ الذي تخصه هذه الأسعار.");
+      return;
+    }
+    if (!confirmedKwd) {
+      setImportError("أكد أن جميع المبالغ بالدينار الكويتي قبل الحفظ.");
+      return;
+    }
+    if (
+      reviewRows.some(
+        (row) =>
+          !row.itemName.trim() ||
+          !row.unitPrice.trim() ||
+          !/^\d+(?:\.\d{1,6})?$/.test(row.unitPrice),
+      )
+    ) {
+      setImportError(
+        "أكمل اسم الصنف وسعرًا صحيحًا لكل صف، أو أزل الصفوف غير المكتملة.",
+      );
+      return;
+    }
+    try {
+      const count = await saveImport.mutateAsync({
+        supplierId: importSupplierId,
+        items: reviewRows.map(({ itemName, unit, unitPrice }) => ({
+          itemName,
+          unit: unit.trim() || null,
+          unitPrice,
+        })),
+        confirmedKwd: true,
+      });
+      setImportNotice(
+        `تم حفظ ${new Intl.NumberFormat("ar-KW").format(count)} سعرًا بالدينار الكويتي للمورد المختار.`,
+      );
+      setReviewRows([]);
+      setReviewed(false);
+      setConfirmedKwd(false);
+      setFile(null);
+      setImportSupplierId("");
+      importList.reset();
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? error.message
+          : "تعذر حفظ القائمة كاملة. لم يتم حفظ أي صف؛ حاول مرة أخرى.",
+      );
+    }
+  };
 
   const confirmDelete = async () => {
     if (!deleting) return;
-    setActionError('');
+    setActionError("");
     try {
       await deletePrice.mutateAsync(deleting.id);
       if (editing?.id === deleting.id) resetForm();
-      setSavedNotice('تم حذف السعر المتفق عليه.');
+      setNotice("تم حذف السعر المتفق عليه.");
       setDeleting(null);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'تعذر حذف السعر. حاول مرة أخرى.');
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "تعذر حذف السعر. حاول مرة أخرى.",
+      );
     }
   };
 
   const busy = savePrice.isPending || deletePrice.isPending;
+  const importResult = importList.data;
+  const currencyIsKwd = importResult?.currency?.trim().toUpperCase() === "KWD";
 
   return (
     <WorkspaceFrame>
       <div className="mb-5">
-        <Link href="/invoices" className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-back-to-invoices"><ChevronLeft className="h-4 w-4" aria-hidden /> العودة إلى الفواتير</Link>
+        <Link
+          href="/invoices"
+          className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          data-testid="link-back-to-invoices"
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden /> العودة إلى الفواتير
+        </Link>
       </div>
       <PageIntro
         eyebrow="مرجع الأسعار"
         title="أسعار متفق عليها"
-        description="احفظ سعر الصنف لكل مورد ووحدة. يستخدم كاشف هذا المرجع للمساعدة في إظهار فروقات السعر أثناء المراجعة."
-        action={<span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.045] px-4 text-xs font-semibold text-primary" data-testid="badge-price-currency-default"><CircleDollarSign className="h-4 w-4" aria-hidden /> الدينار الكويتي هو الافتراضي</span>}
+        description="احتفظ بسعر الصنف لكل مورد ووحدة. راجع القائمة قبل اعتمادها لتكون مرجعًا واضحًا عند فحص الفاتورة."
+        action={
+          <span
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.045] px-4 text-xs font-semibold text-primary"
+            data-testid="badge-price-currency-default"
+          >
+            <CircleDollarSign className="h-4 w-4" aria-hidden /> الدينار الكويتي
+            هو الافتراضي
+          </span>
+        }
       />
 
       {authLoading ? (
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]" aria-label="جارٍ التحقق من الحساب" data-testid="status-prices-auth-loading">
-          <div className="h-80 animate-pulse rounded-2xl bg-muted" />
-          <div className="h-80 animate-pulse rounded-2xl bg-muted" />
+        <section
+          className="grid gap-4 lg:grid-cols-2"
+          aria-label="جارٍ التحقق من الحساب"
+          data-testid="status-prices-auth-loading"
+        >
+          <div className="h-72 animate-pulse rounded-2xl bg-muted" />
+          <div className="h-72 animate-pulse rounded-2xl bg-muted" />
         </section>
       ) : !user ? (
-        <section className="rounded-3xl border border-border bg-card px-6 py-12 text-center" data-testid="state-prices-sign-in">
+        <section
+          className="rounded-3xl border border-border bg-card px-6 py-12 text-center"
+          data-testid="state-prices-sign-in"
+        >
           <ShieldCheck className="mx-auto h-9 w-9 text-primary" aria-hidden />
-          <h2 className="mt-4 font-display text-2xl text-primary">الأسعار محفوظة في مساحتك</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">ادخل إلى حسابك للوصول إلى أسعار الموردين الخاصة بك.</p>
-          <Link href="/login" className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground" data-testid="link-prices-login">الدخول بحساب Google</Link>
+          <h2 className="mt-4 font-display text-2xl text-primary">
+            الأسعار محفوظة في مساحتك
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            ادخل إلى حسابك للوصول إلى مرجع الأسعار الخاص بك.
+          </p>
+          <Link
+            href="/login"
+            className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground"
+            data-testid="link-prices-login"
+          >
+            الدخول بحسابك
+          </Link>
         </section>
-      ) : prices.isLoading ? (
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]" aria-label="جارٍ تحميل أسعار الموردين" data-testid="status-prices-loading">
-          <div className="h-80 animate-pulse rounded-2xl border border-border bg-card" />
-          <div className="h-80 animate-pulse rounded-2xl border border-border bg-card" />
+      ) : prices.isLoading || suppliers.isLoading ? (
+        <section
+          className="grid gap-4 lg:grid-cols-2"
+          aria-label="جارٍ تحميل بيانات الأسعار والموردين"
+          data-testid="status-prices-loading"
+        >
+          <div className="h-72 animate-pulse rounded-2xl border border-border bg-card" />
+          <div className="h-72 animate-pulse rounded-2xl border border-border bg-card" />
         </section>
       ) : prices.isError ? (
-        <QueryProblem message="تعذر تحميل الأسعار المتفق عليها. أعد المحاولة؛ لن نعرض بيانات غير مؤكدة." onRetry={() => void prices.refetch()} testId="status-prices-error" />
+        <QueryProblem
+          message="تعذر تحميل الأسعار المتفق عليها. أعد المحاولة؛ لن نعرض بيانات غير مؤكدة."
+          onRetry={() => void prices.refetch()}
+          testId="status-prices-error"
+        />
+      ) : suppliers.isError ? (
+        <QueryProblem
+          message="تعذر تحميل قائمة الموردين المطلوبة لربط الأسعار."
+          onRetry={() => void suppliers.refetch()}
+          testId="status-price-suppliers-error"
+        />
       ) : (
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
-          <section className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 lg:sticky lg:top-5" data-testid="panel-price-form">
-            <div className="mb-5 flex items-start gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-primary"><Plus className="h-5 w-5" aria-hidden /></span>
-              <div>
-                <h2 className="font-display text-xl text-primary" data-testid="heading-price-form">{editing ? 'تعديل السعر' : 'إضافة سعر متفق عليه'}</h2>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">سعر لكل مورد وصنف ووحدة قياس.</p>
-              </div>
-            </div>
-            <form onSubmit={submit} className="space-y-4" aria-busy={savePrice.isPending} data-testid="form-supplier-price">
-              <div>
-                <label htmlFor="price-supplier" className="mb-1.5 block text-sm font-medium">اسم المورد</label>
-                <input id="price-supplier" autoComplete="organization" {...form.register('supplierName', { required: 'أدخل اسم المورد.' })} placeholder="مثال: شركة المواد الغذائية" className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-price-supplier" />
-                {form.formState.errors.supplierName && <p className="mt-1 text-xs text-destructive" data-testid="error-price-supplier">{form.formState.errors.supplierName.message}</p>}
-              </div>
-              <div>
-                <label htmlFor="price-item" className="mb-1.5 block text-sm font-medium">اسم الصنف</label>
-                <input id="price-item" {...form.register('itemName', { required: 'أدخل اسم الصنف.' })} placeholder="مثال: زيت زيتون" className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-price-item" />
-                {form.formState.errors.itemName && <p className="mt-1 text-xs text-destructive" data-testid="error-price-item">{form.formState.errors.itemName.message}</p>}
-              </div>
-              <div className="grid grid-cols-[minmax(0,1fr)_minmax(100px,.7fr)] gap-3">
+        <div className="space-y-6">
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,.78fr)_minmax(0,1.22fr)]">
+            <section
+              className="rounded-2xl border border-border/80 bg-card p-5 sm:p-6 lg:sticky lg:top-5"
+              data-testid="panel-price-form"
+            >
+              <div className="mb-5 flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-secondary text-primary">
+                  <Plus className="h-5 w-5" aria-hidden />
+                </span>
                 <div>
-                  <label htmlFor="price-unit" className="mb-1.5 block text-sm font-medium">الوحدة</label>
-                  <input id="price-unit" {...form.register('unit', { required: 'أدخل وحدة القياس.' })} placeholder="كرتون، كغ، لتر…" className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="input-price-unit" />
-                  {form.formState.errors.unit && <p className="mt-1 text-xs text-destructive" data-testid="error-price-unit">{form.formState.errors.unit.message}</p>}
+                  <h2
+                    className="font-display text-xl text-primary"
+                    data-testid="heading-price-form"
+                  >
+                    {editing ? "تعديل السعر" : "إضافة سعر متفق عليه"}
+                  </h2>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    الأسعار الجديدة ترتبط بمورد محفوظ.
+                  </p>
                 </div>
+              </div>
+              {!suppliers.data?.length && (
+                <p
+                  className="mb-4 rounded-xl border border-accent/35 bg-accent/10 p-3 text-sm leading-6"
+                  data-testid="notice-no-saved-suppliers"
+                >
+                  أضف موردًا أولًا قبل تسجيل سعر جديد.{" "}
+                  <Link
+                    href="/suppliers"
+                    className="font-semibold text-primary underline underline-offset-2"
+                    data-testid="link-add-supplier-from-price"
+                  >
+                    إدارة الموردين
+                  </Link>
+                </p>
+              )}
+              <form
+                onSubmit={(event) => void submitPrice(event)}
+                className="space-y-4"
+                aria-busy={savePrice.isPending}
+                data-testid="form-supplier-price"
+              >
                 <div>
-                  <label htmlFor="price-currency" className="mb-1.5 block text-sm font-medium">العملة</label>
-                  <select id="price-currency" {...form.register('currency', { required: true })} className="min-h-11 w-full rounded-xl border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="select-price-currency">
-                    {supportedCurrencies.map((currency) => <option key={currency.value} value={currency.value}>{currency.value}</option>)}
+                  <label
+                    htmlFor="price-supplier"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    المورد
+                  </label>
+                  <select
+                    id="price-supplier"
+                    value={form.supplierId}
+                    onChange={(event) =>
+                      setForm({ ...form, supplierId: event.target.value })
+                    }
+                    required={!editing}
+                    className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    data-testid="select-price-supplier"
+                  >
+                    <option value="">اختر موردًا محفوظًا</option>
+                    {editing && !editing.supplier_id && (
+                      <option value="__unlinked">
+                        غير مرتبط · {editing.supplier_name}
+                      </option>
+                    )}
+                    {suppliers.data?.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
                   </select>
+                  {editing && !editing.supplier_id && (
+                    <p
+                      className="mt-1 text-xs text-muted-foreground"
+                      data-testid="text-price-unlinked-edit"
+                    >
+                      يمكن حفظ التعديل دون ربط السعر، أو اختيار مورد لإعادة
+                      ربطه.
+                    </p>
+                  )}
                 </div>
-              </div>
-              <div>
-                <label htmlFor="price-unit-price" className="mb-1.5 block text-sm font-medium">السعر المتفق عليه للوحدة</label>
-                <div className="relative">
-                  <input id="price-unit-price" type="number" inputMode="decimal" min="0" step="0.001" {...form.register('unitPrice', { required: 'أدخل السعر المتفق عليه.', validate: (value) => (Number.isFinite(Number(value)) && Number(value) >= 0) || 'أدخل مبلغًا صحيحًا غير سالب.' })} placeholder="0.000" className="min-h-12 w-full rounded-xl border border-input bg-background px-3 pl-14 text-left font-mono text-lg tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" dir="ltr" data-testid="input-price-unit-price" />
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground" data-testid="text-price-currency-suffix">{form.watch('currency') || 'KWD'}</span>
+                <div>
+                  <label
+                    htmlFor="price-item"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    اسم الصنف
+                  </label>
+                  <input
+                    id="price-item"
+                    value={form.itemName}
+                    onChange={(event) =>
+                      setForm({ ...form, itemName: event.target.value })
+                    }
+                    required
+                    placeholder="مثال: زيت زيتون"
+                    className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    data-testid="input-price-item"
+                  />
                 </div>
-                {form.formState.errors.unitPrice && <p className="mt-1 text-xs text-destructive" data-testid="error-price-unit-price">{form.formState.errors.unitPrice.message}</p>}
-              </div>
-
-              {formError && <p role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm leading-5 text-destructive" data-testid="status-price-save-error"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{formError}</p>}
-              {actionError && <p role="alert" className="rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm leading-5 text-destructive" data-testid="status-price-action-error">{actionError}</p>}
-              {savedNotice && <p role="status" className="rounded-xl border border-primary/20 bg-primary/[0.05] p-3 text-sm text-primary" data-testid="status-price-saved">{savedNotice}</p>}
-
-              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
-                {editing && <button type="button" onClick={resetForm} disabled={busy} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-input px-4 text-sm font-semibold text-muted-foreground hover:bg-muted disabled:opacity-50" data-testid="button-cancel-price-edit"><X className="h-4 w-4" aria-hidden /> إلغاء التعديل</button>}
-                <button type="submit" disabled={busy} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60" data-testid="button-save-supplier-price">
-                  {savePrice.isPending ? <span className="h-4 w-4 animate-pulse rounded-full border-2 border-primary-foreground border-t-transparent" aria-hidden /> : editing ? <Check className="h-4 w-4" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
-                  {savePrice.isPending ? 'جارٍ الحفظ…' : editing ? 'حفظ التعديل' : 'إضافة السعر'}
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <section className="min-w-0" data-testid="section-supplier-prices">
-            <div className="mb-3 flex items-end justify-between gap-3">
-              <div><h2 className="font-display text-xl text-primary">قائمة الأسعار</h2><p className="mt-1 text-xs text-muted-foreground">مرجع المورد والصنف والوحدة.</p></div>
-              <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-primary tabular-nums" data-testid="text-price-count">{new Intl.NumberFormat('ar-KW').format(prices.data?.length ?? 0)} سعر</span>
-            </div>
-
-            {deleting && (
-              <div className="mb-3 flex flex-col gap-3 rounded-xl border border-destructive/25 bg-destructive/[0.045] p-4 sm:flex-row sm:items-center sm:justify-between" role="alert" data-testid={`confirm-delete-price-${deleting.id}`}>
-                <p className="text-sm leading-6">حذف سعر <strong>{deleting.item_name}</strong> لدى <strong>{deleting.supplier_name}</strong>؟</p>
-                <div className="flex shrink-0 gap-2">
-                  <button type="button" onClick={() => setDeleting(null)} disabled={deletePrice.isPending} className="min-h-9 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-muted" data-testid="button-cancel-delete-price">إبقاء السعر</button>
-                  <button type="button" onClick={() => void confirmDelete()} disabled={deletePrice.isPending} className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-destructive px-3 text-xs font-semibold text-destructive-foreground disabled:opacity-60" data-testid="button-confirm-delete-price">{deletePrice.isPending ? 'جارٍ الحذف…' : <><Trash2 className="h-3.5 w-3.5" aria-hidden /> تأكيد الحذف</>}</button>
+                <div className="grid grid-cols-[minmax(0,1fr)_minmax(100px,.72fr)] gap-3">
+                  <div>
+                    <label
+                      htmlFor="price-unit"
+                      className="mb-1.5 block text-sm font-medium"
+                    >
+                      الوحدة
+                    </label>
+                    <input
+                      id="price-unit"
+                      value={form.unit}
+                      onChange={(event) =>
+                        setForm({ ...form, unit: event.target.value })
+                      }
+                      placeholder="كرتون، كغ، لتر…"
+                      className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      data-testid="input-price-unit"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="price-currency"
+                      className="mb-1.5 block text-sm font-medium"
+                    >
+                      العملة
+                    </label>
+                    <select
+                      id="price-currency"
+                      value={form.currency}
+                      onChange={(event) =>
+                        setForm({ ...form, currency: event.target.value })
+                      }
+                      className="min-h-11 w-full rounded-xl border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      data-testid="select-price-currency"
+                    >
+                      {currencies.map((currency) => (
+                        <option key={currency} value={currency}>
+                          {currency}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+                <div>
+                  <label
+                    htmlFor="price-unit-price"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    السعر المتفق عليه للوحدة
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="price-unit-price"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.001"
+                      value={form.unitPrice}
+                      onChange={(event) =>
+                        setForm({ ...form, unitPrice: event.target.value })
+                      }
+                      required
+                      placeholder="0.000"
+                      className="min-h-12 w-full rounded-xl border border-input bg-background px-3 pl-14 text-left font-mono text-lg tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      dir="ltr"
+                      data-testid="input-price-unit-price"
+                    />
+                    <span
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted-foreground"
+                      data-testid="text-price-currency-suffix"
+                    >
+                      {form.currency}
+                    </span>
+                  </div>
+                </div>
+                {formError && (
+                  <p
+                    role="alert"
+                    className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm leading-5 text-destructive"
+                    data-testid="status-price-save-error"
+                  >
+                    <AlertCircle
+                      className="mt-0.5 h-4 w-4 shrink-0"
+                      aria-hidden
+                    />
+                    {formError}
+                  </p>
+                )}
+                {actionError && (
+                  <p
+                    role="alert"
+                    className="rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm leading-5 text-destructive"
+                    data-testid="status-price-action-error"
+                  >
+                    {actionError}
+                  </p>
+                )}
+                {notice && (
+                  <p
+                    role="status"
+                    className="rounded-xl border border-primary/20 bg-primary/[0.05] p-3 text-sm text-primary"
+                    data-testid="status-price-saved"
+                  >
+                    {notice}
+                  </p>
+                )}
+                <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
+                  {editing && (
+                    <button
+                      type="button"
+                      onClick={resetForm}
+                      disabled={busy}
+                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-input px-4 text-sm font-semibold text-muted-foreground hover:bg-muted disabled:opacity-50"
+                      data-testid="button-cancel-price-edit"
+                    >
+                      <X className="h-4 w-4" aria-hidden /> إلغاء التعديل
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={busy || (!editing && !suppliers.data?.length)}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:cursor-wait disabled:opacity-60"
+                    data-testid="button-save-supplier-price"
+                  >
+                    {savePrice.isPending ? (
+                      <span
+                        className="h-4 w-4 animate-pulse rounded-full border-2 border-primary-foreground border-t-transparent"
+                        aria-hidden
+                      />
+                    ) : editing ? (
+                      <Check className="h-4 w-4" aria-hidden />
+                    ) : (
+                      <Plus className="h-4 w-4" aria-hidden />
+                    )}
+                    {savePrice.isPending
+                      ? "جارٍ الحفظ…"
+                      : editing
+                        ? "حفظ التعديل"
+                        : "إضافة السعر"}
+                  </button>
+                </div>
+              </form>
+            </section>
+            <section className="min-w-0" data-testid="section-supplier-prices">
+              <div className="mb-3 flex items-end justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-xl text-primary">
+                    قائمة الأسعار
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    تشمل السجلات القديمة غير المرتبطة.
+                  </p>
+                </div>
+                <span
+                  className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-primary tabular-nums"
+                  data-testid="text-price-count"
+                >
+                  {new Intl.NumberFormat("ar-KW").format(
+                    prices.data?.length ?? 0,
+                  )}{" "}
+                  سعر
+                </span>
               </div>
-            )}
-
-            {!prices.data?.length ? (
-              <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-10 text-center sm:py-14" data-testid="state-supplier-prices-empty">
-                <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary text-primary"><CircleDollarSign className="h-6 w-6" aria-hidden /></div>
-                <h3 className="mt-4 font-display text-xl text-primary">لا توجد أسعار محفوظة</h3>
-                <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">أضف أول سعر متفق عليه بينك وبين المورد. سيبقى مرتبطًا بحسابك ويظهر هنا عند تحميله بنجاح.</p>
-                <button type="button" onClick={() => document.getElementById('price-supplier')?.focus()} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground" data-testid="button-add-first-price"><Plus className="h-4 w-4" aria-hidden /> إضافة سعر</button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {prices.data.map((row) => (
-                  <article key={row.id} className={`rounded-2xl border bg-card p-4 transition-colors sm:p-5 ${editing?.id === row.id ? 'border-primary/40 ring-1 ring-primary/10' : 'border-border/80'}`} data-testid={`card-supplier-price-${row.id}`}>
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs text-muted-foreground" data-testid={`text-price-supplier-${row.id}`}>{row.supplier_name}</p>
-                        <h3 className="mt-1 text-base font-semibold" data-testid={`text-price-item-${row.id}`}>{row.item_name}</h3>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                          <span data-testid={`text-price-unit-${row.id}`}>لكل {row.unit || 'وحدة غير محددة'}</span>
-                          <span className="h-1 w-1 rounded-full bg-border" aria-hidden />
-                          <span data-testid={`text-price-updated-${row.id}`}>آخر تحديث: {formatUpdatedAt(row.updated_at)}</span>
+              {deleting && (
+                <div
+                  className="mb-3 flex flex-col gap-3 rounded-xl border border-destructive/25 bg-destructive/[0.045] p-4 sm:flex-row sm:items-center sm:justify-between"
+                  role="alert"
+                  data-testid={`confirm-delete-price-${deleting.id}`}
+                >
+                  <p className="text-sm leading-6">
+                    حذف سعر <strong>{deleting.item_name}</strong> لدى{" "}
+                    <strong>{deleting.supplier_name}</strong>؟
+                  </p>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(null)}
+                      disabled={deletePrice.isPending}
+                      className="min-h-9 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-muted"
+                      data-testid="button-cancel-delete-price"
+                    >
+                      إبقاء السعر
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void confirmDelete()}
+                      disabled={deletePrice.isPending}
+                      className="inline-flex min-h-9 items-center gap-1 rounded-lg bg-destructive px-3 text-xs font-semibold text-destructive-foreground disabled:opacity-60"
+                      data-testid="button-confirm-delete-price"
+                    >
+                      {deletePrice.isPending ? (
+                        "جارٍ الحذف…"
+                      ) : (
+                        <>
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden /> تأكيد
+                          الحذف
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!prices.data?.length ? (
+                <div
+                  className="rounded-2xl border border-dashed border-border bg-card px-5 py-10 text-center sm:py-14"
+                  data-testid="state-supplier-prices-empty"
+                >
+                  <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-secondary text-primary">
+                    <CircleDollarSign className="h-6 w-6" aria-hidden />
+                  </div>
+                  <h3 className="mt-4 font-display text-xl text-primary">
+                    لا توجد أسعار محفوظة
+                  </h3>
+                  <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
+                    أضف سعرًا لموردك أو استورد قائمة وراجعها قبل حفظها.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      document.getElementById("price-supplier")?.focus()
+                    }
+                    className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground"
+                    data-testid="button-add-first-price"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden /> إضافة سعر
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {prices.data.map((row) => (
+                    <article
+                      key={row.id}
+                      className={`rounded-2xl border bg-card p-4 transition-colors sm:p-5 ${editing?.id === row.id ? "border-primary/40 ring-1 ring-primary/10" : "border-border/80"}`}
+                      data-testid={`card-supplier-price-${row.id}`}
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p
+                            className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+                            data-testid={`text-price-supplier-${row.id}`}
+                          >
+                            {row.supplier_name}
+                            {!row.supplier_id && (
+                              <span
+                                className="rounded-full border border-accent/35 bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-foreground"
+                                data-testid={`badge-price-unlinked-${row.id}`}
+                              >
+                                غير مرتبط
+                              </span>
+                            )}
+                          </p>
+                          <h3
+                            className="mt-1 text-base font-semibold"
+                            data-testid={`text-price-item-${row.id}`}
+                          >
+                            {row.item_name}
+                          </h3>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                            <span data-testid={`text-price-unit-${row.id}`}>
+                              لكل {row.unit || "وحدة غير محددة"}
+                            </span>
+                            <span
+                              className="h-1 w-1 rounded-full bg-border"
+                              aria-hidden
+                            />
+                            <span data-testid={`text-price-updated-${row.id}`}>
+                              آخر تحديث: {formatUpdatedAt(row.updated_at)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 sm:justify-end">
+                          <p
+                            className="text-left font-mono text-xl font-semibold tabular-nums text-primary sm:min-w-32"
+                            dir="ltr"
+                            data-testid={`text-price-value-${row.id}`}
+                          >
+                            {formatPrice(row.unit_price, row.currency || "KWD")}
+                            <span className="mt-1 block text-[10px] font-sans font-normal text-muted-foreground">
+                              للوحدة
+                            </span>
+                          </p>
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => startEdit(row)}
+                              aria-label={`تعديل سعر ${row.item_name} لدى ${row.supplier_name}`}
+                              className="grid h-10 w-10 place-items-center rounded-lg border border-border text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              data-testid={`button-edit-price-${row.id}`}
+                            >
+                              <PencilLine className="h-4 w-4" aria-hidden />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleting(row);
+                                setActionError("");
+                              }}
+                              aria-label={`حذف سعر ${row.item_name} لدى ${row.supplier_name}`}
+                              className="grid h-10 w-10 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              data-testid={`button-delete-price-${row.id}`}
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between gap-4 sm:justify-end">
-                        <p className="text-left font-mono text-xl font-semibold tabular-nums text-primary sm:min-w-32" dir="ltr" data-testid={`text-price-value-${row.id}`}>{formatPrice(row.unit_price, row.currency || 'KWD')}<span className="mt-1 block text-[10px] font-sans font-normal text-muted-foreground">للوحدة</span></p>
-                        <div className="flex gap-1">
-                          <button type="button" onClick={() => startEdit(row)} aria-label={`تعديل سعر ${row.item_name} لدى ${row.supplier_name}`} className="grid h-10 w-10 place-items-center rounded-lg border border-border text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid={`button-edit-price-${row.id}`}><PencilLine className="h-4 w-4" aria-hidden /></button>
-                          <button type="button" onClick={() => { setDeleting(row); setActionError(''); }} aria-label={`حذف سعر ${row.item_name} لدى ${row.supplier_name}`} className="grid h-10 w-10 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid={`button-delete-price-${row.id}`}><Trash2 className="h-4 w-4" aria-hidden /></button>
-                        </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+
+          <section
+            className="overflow-hidden rounded-2xl border border-border/80 bg-card"
+            data-testid="panel-price-import"
+          >
+            <div className="flex flex-col gap-4 border-b border-border/70 bg-secondary/35 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-card text-primary">
+                  <FileSpreadsheet className="h-5 w-5" aria-hidden />
+                </span>
+                <div>
+                  <h2 className="font-display text-xl text-primary">
+                    استيراد قائمة أسعار
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                    ارفع صورة أو ملف Excel، ثم راجع كل صف بنفسك. لن تُحفظ
+                    البيانات المستخرجة تلقائيًا.
+                  </p>
+                </div>
+              </div>
+              <span className="rounded-full border border-primary/20 bg-card px-3 py-1.5 text-xs font-semibold text-primary">
+                JPG · PNG · WebP · XLS · XLSX
+              </span>
+            </div>
+            <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,.72fr)_minmax(0,1.28fr)]">
+              <div className="space-y-4">
+                {!suppliers.data?.length && (
+                  <p
+                    className="rounded-xl border border-accent/35 bg-accent/10 p-3 text-sm leading-6"
+                    data-testid="notice-import-requires-supplier"
+                  >
+                    أضف المورد أولًا حتى تتمكن من ربط القائمة بأسعاره.{" "}
+                    <Link
+                      href="/suppliers"
+                      className="font-semibold text-primary underline underline-offset-2"
+                      data-testid="link-add-supplier-before-import"
+                    >
+                      إدارة الموردين
+                    </Link>
+                  </p>
+                )}
+                <div>
+                  <label
+                    htmlFor="price-list-file"
+                    className="mb-1.5 block text-sm font-medium"
+                  >
+                    ملف قائمة الأسعار
+                  </label>
+                  <input
+                    id="price-list-file"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.xls,.xlsx,image/jpeg,image/png,image/webp,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    onChange={selectFile}
+                    className="block min-h-11 w-full rounded-xl border border-input bg-background text-sm file:me-3 file:min-h-11 file:border-0 file:bg-secondary file:px-3 file:font-semibold file:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    data-testid="input-price-list-file"
+                  />
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    الحد الأقصى ١٠ ميغابايت. يُزال الملف المؤقت بعد القراءة.
+                  </p>
+                </div>
+                {file && (
+                  <div
+                    className="rounded-xl border border-border bg-background p-3"
+                    data-testid="card-price-import-source"
+                  >
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt={`معاينة محلية للملف ${file.name}`}
+                        className="mb-3 max-h-52 w-full rounded-lg border border-border object-contain"
+                        data-testid="img-price-import-preview"
+                      />
+                    ) : (
+                      <div className="mb-3 grid h-24 place-items-center rounded-lg bg-secondary text-primary">
+                        {file.name.toLowerCase().match(/\.(xls|xlsx)$/) ? (
+                          <FileSpreadsheet className="h-8 w-8" aria-hidden />
+                        ) : (
+                          <ImageIcon className="h-8 w-8" aria-hidden />
+                        )}
+                      </div>
+                    )}
+                    <p
+                      className="truncate text-sm font-semibold"
+                      dir="auto"
+                      data-testid="text-price-import-filename"
+                    >
+                      {file.name}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {(file.size / 1024 / 1024).toFixed(2)} ميغابايت ·{" "}
+                      {file.type || "نوع ملف غير محدد"}
+                    </p>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void runImport()}
+                  disabled={
+                    !file ||
+                    !suppliers.data?.length ||
+                    importList.isPending ||
+                    saveImport.isPending
+                  }
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-55"
+                  data-testid="button-read-price-list"
+                >
+                  {importList.isPending ? (
+                    <span
+                      className="h-4 w-4 animate-pulse rounded-full border-2 border-primary-foreground border-t-transparent"
+                      aria-hidden
+                    />
+                  ) : (
+                    <Upload className="h-4 w-4" aria-hidden />
+                  )}
+                  {importList.isPending
+                    ? "جارٍ قراءة القائمة…"
+                    : "قراءة الملف ومراجعته"}
+                </button>
+                {importError && (
+                  <p
+                    role="alert"
+                    className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm leading-5 text-destructive"
+                    data-testid="status-price-import-error"
+                  >
+                    <AlertCircle
+                      className="mt-0.5 h-4 w-4 shrink-0"
+                      aria-hidden
+                    />
+                    {importError}
+                  </p>
+                )}
+                {importNotice && (
+                  <p
+                    role="status"
+                    className="rounded-xl border border-primary/20 bg-primary/[0.05] p-3 text-sm leading-5 text-primary"
+                    data-testid="status-price-import-notice"
+                  >
+                    {importNotice}
+                  </p>
+                )}
+              </div>
+
+              {importResult ? (
+                <div
+                  className="min-w-0 space-y-4"
+                  data-testid="section-price-import-review"
+                >
+                  <div className="rounded-xl border border-border bg-background p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs text-muted-foreground">
+                          ملخص قراءة الملف
+                        </p>
+                        <h3
+                          className="mt-1 font-semibold"
+                          data-testid="text-import-supplier-hint"
+                        >
+                          {importResult.supplierName
+                            ? `تلميح المورد: ${importResult.supplierName}`
+                            : "لم يُتعرف على اسم المورد"}
+                        </h3>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${currencyIsKwd ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}
+                        data-testid="badge-import-currency"
+                      >
+                        {importResult.currency
+                          ? `العملة المستخرجة: ${importResult.currency}`
+                          : "العملة غير معروفة"}
+                      </span>
+                    </div>
+                    {!currencyIsKwd && (
+                      <p
+                        role="alert"
+                        className="mt-3 rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm leading-6 text-destructive"
+                        data-testid="warning-import-currency"
+                      >
+                        العملة المستخرجة ليست دينارًا كويتيًا أو لم يتم تحديدها.
+                        سيتم حفظ هذه القائمة بالدينار الكويتي فقط؛ تحقق من كل
+                        مبلغ وأكد العملة صراحةً قبل الحفظ.
+                      </p>
+                    )}
+                    {(importResult.skippedRows > 0 ||
+                      importResult.truncated) && (
+                      <div
+                        className="mt-3 space-y-2"
+                        data-testid="warning-import-rows"
+                      >
+                        {importResult.skippedRows > 0 && (
+                          <p
+                            className="rounded-lg border border-accent/35 bg-accent/10 p-3 text-sm leading-5"
+                            data-testid="warning-import-skipped"
+                          >
+                            تم تجاوز{" "}
+                            {new Intl.NumberFormat("ar-KW").format(
+                              importResult.skippedRows,
+                            )}{" "}
+                            صفًا أثناء القراءة؛ قد تحتاج إلى إدخالها يدويًا.
+                          </p>
+                        )}
+                        {importResult.truncated && (
+                          <p
+                            className="rounded-lg border border-accent/35 bg-accent/10 p-3 text-sm leading-5"
+                            data-testid="warning-import-truncated"
+                          >
+                            القراءة وصلت إلى حد الصفوف؛ تحقق من اكتمال القائمة
+                            الأصلية.
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {!reviewed ? (
+                    <div className="rounded-xl border border-dashed border-border p-5 text-center">
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        الصفوف المستخرجة غير محفوظة. ابدأ مراجعتها لتحرير
+                        الأسماء والوحدات والأسعار وإزالة الصفوف غير المناسبة.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={confirmReview}
+                        disabled={!reviewRows.length || importList.isPending}
+                        className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/25 bg-primary/[0.05] px-4 text-sm font-semibold text-primary disabled:opacity-50"
+                        data-testid="button-begin-price-review"
+                      >
+                        <PencilLine className="h-4 w-4" aria-hidden /> مراجعة
+                        الصفوف
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label
+                          htmlFor="import-supplier"
+                          className="mb-1.5 block text-sm font-medium"
+                        >
+                          المورد المحفوظ الذي تخصه القائمة
+                        </label>
+                        <select
+                          id="import-supplier"
+                          value={importSupplierId}
+                          onChange={(event) =>
+                            setImportSupplierId(event.target.value)
+                          }
+                          className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          data-testid="select-import-supplier"
+                        >
+                          <option value="">اختر المورد</option>
+                          {suppliers.data?.map((supplier) => (
+                            <option key={supplier.id} value={supplier.id}>
+                              {supplier.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div
+                        className="space-y-3"
+                        data-testid="list-import-review-rows"
+                      >
+                        {reviewRows.map((row, index) => {
+                          const lowConfidence = row.confidence < 0.7;
+                          return (
+                            <article
+                              key={row.key}
+                              className={`rounded-xl border p-3 sm:p-4 ${lowConfidence ? "border-accent/45 bg-accent/[0.045]" : "border-border bg-background"}`}
+                              data-testid={`card-import-row-${index}`}
+                            >
+                              <div className="mb-3 flex items-center justify-between gap-2">
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  الصنف{" "}
+                                  {new Intl.NumberFormat("ar-KW").format(
+                                    index + 1,
+                                  )}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {lowConfidence ? (
+                                    <span
+                                      className="rounded-full bg-accent/20 px-2.5 py-1 text-[10px] font-bold text-foreground"
+                                      data-testid={`badge-import-confidence-${index}`}
+                                    >
+                                      ثقة منخفضة ·{" "}
+                                      {Math.round(row.confidence * 100)}٪
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary"
+                                      data-testid={`badge-import-confidence-${index}`}
+                                    >
+                                      ثقة {Math.round(row.confidence * 100)}٪
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setReviewRows((rows) =>
+                                        rows.filter(
+                                          (item) => item.key !== row.key,
+                                        ),
+                                      )
+                                    }
+                                    aria-label={`إزالة الصنف ${row.itemName || index + 1}`}
+                                    className="grid h-9 w-9 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive"
+                                    data-testid={`button-remove-import-row-${index}`}
+                                  >
+                                    <X className="h-4 w-4" aria-hidden />
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="grid gap-3 sm:grid-cols-[1.2fr_.7fr_.7fr]">
+                                <div>
+                                  <label
+                                    htmlFor={`import-name-${index}`}
+                                    className="mb-1 block text-xs font-medium"
+                                  >
+                                    اسم الصنف
+                                  </label>
+                                  <input
+                                    id={`import-name-${index}`}
+                                    value={row.itemName}
+                                    onChange={(event) =>
+                                      setReviewRows((rows) =>
+                                        rows.map((item) =>
+                                          item.key === row.key
+                                            ? {
+                                                ...item,
+                                                itemName: event.target.value,
+                                              }
+                                            : item,
+                                        ),
+                                      )
+                                    }
+                                    className="min-h-10 w-full rounded-lg border border-input bg-card px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    data-testid={`input-import-item-name-${index}`}
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    htmlFor={`import-unit-${index}`}
+                                    className="mb-1 block text-xs font-medium"
+                                  >
+                                    الوحدة
+                                  </label>
+                                  <input
+                                    id={`import-unit-${index}`}
+                                    value={row.unit}
+                                    onChange={(event) =>
+                                      setReviewRows((rows) =>
+                                        rows.map((item) =>
+                                          item.key === row.key
+                                            ? {
+                                                ...item,
+                                                unit: event.target.value,
+                                              }
+                                            : item,
+                                        ),
+                                      )
+                                    }
+                                    placeholder="اختياري"
+                                    className="min-h-10 w-full rounded-lg border border-input bg-card px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    data-testid={`input-import-item-unit-${index}`}
+                                  />
+                                </div>
+                                <div>
+                                  <label
+                                    htmlFor={`import-price-${index}`}
+                                    className="mb-1 block text-xs font-medium"
+                                  >
+                                    السعر · KWD
+                                  </label>
+                                  <input
+                                    id={`import-price-${index}`}
+                                    type="number"
+                                    inputMode="decimal"
+                                    min="0"
+                                    step="0.001"
+                                    value={row.unitPrice}
+                                    onChange={(event) =>
+                                      setReviewRows((rows) =>
+                                        rows.map((item) =>
+                                          item.key === row.key
+                                            ? {
+                                                ...item,
+                                                unitPrice: event.target.value,
+                                              }
+                                            : item,
+                                        ),
+                                      )
+                                    }
+                                    placeholder="أدخل السعر"
+                                    className="min-h-10 w-full rounded-lg border border-input bg-card px-2.5 text-left font-mono text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    dir="ltr"
+                                    data-testid={`input-import-item-price-${index}`}
+                                  />
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                      <label
+                        className="flex cursor-pointer items-start gap-3 rounded-xl border border-destructive/25 bg-destructive/[0.035] p-4 text-sm leading-6"
+                        data-testid="label-confirm-import-kwd"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={confirmedKwd}
+                          onChange={(event) =>
+                            setConfirmedKwd(event.target.checked)
+                          }
+                          className="mt-1 h-4 w-4 accent-primary"
+                          data-testid="checkbox-confirm-import-kwd"
+                        />
+                        <span>
+                          <strong className="block">
+                            أؤكد أن جميع المبالغ التي سأحفظها بالدينار الكويتي
+                            (KWD).
+                          </strong>
+                          <span className="text-xs text-muted-foreground">
+                            هذا تأكيد مستقل مطلوب حتى لو أشارت القائمة إلى عملة
+                            أخرى أو لم تحدد العملة.
+                          </span>
+                        </span>
+                      </label>
+                      <div className="flex flex-col gap-2 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReviewed(false);
+                            setConfirmedKwd(false);
+                            setImportNotice(
+                              "يمكنك تعديل الصفوف ثم بدء المراجعة مرة أخرى.",
+                            );
+                          }}
+                          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-input px-4 text-sm font-semibold text-muted-foreground hover:bg-muted"
+                          data-testid="button-return-import-review"
+                        >
+                          <PencilLine className="h-4 w-4" aria-hidden /> تعديل
+                          الصفوف
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void saveReviewedImport()}
+                          disabled={
+                            saveImport.isPending ||
+                            !reviewRows.length ||
+                            !confirmedKwd ||
+                            !importSupplierId
+                          }
+                          className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-55"
+                          data-testid="button-save-reviewed-import"
+                        >
+                          {saveImport.isPending ? (
+                            <span
+                              className="h-4 w-4 animate-pulse rounded-full border-2 border-primary-foreground border-t-transparent"
+                              aria-hidden
+                            />
+                          ) : (
+                            <Check className="h-4 w-4" aria-hidden />
+                          )}
+                          {saveImport.isPending
+                            ? "جارٍ حفظ القائمة كاملة…"
+                            : `حفظ ${new Intl.NumberFormat("ar-KW").format(reviewRows.length)} سعرًا`}
+                        </button>
                       </div>
                     </div>
-                  </article>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-4 flex items-start gap-2 rounded-xl border border-primary/15 bg-primary/[0.035] p-3 text-xs leading-5 text-muted-foreground" data-testid="notice-price-privacy">
-              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-              الأسعار تُحمّل من سجلات حسابك المحمية بسياسات قاعدة البيانات. إذا تعذّر التحميل، لن نعرض قائمة بديلة أو بيانات تجريبية.
+                  )}
+                </div>
+              ) : (
+                <div
+                  className="grid min-h-52 place-items-center rounded-xl border border-dashed border-border bg-background p-6 text-center"
+                  data-testid="state-price-import-empty"
+                >
+                  <div>
+                    <FileSpreadsheet
+                      className="mx-auto h-8 w-8 text-primary/70"
+                      aria-hidden
+                    />
+                    <p className="mt-3 text-sm font-semibold">
+                      قائمة الأسعار المستخرجة ستظهر هنا
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      اختر ملفًا ثم ابدأ القراءة. لن يتم حفظ أي بيانات قبل
+                      مراجعتك وتأكيد العملة.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
+          <div
+            className="flex items-start gap-2 rounded-xl border border-primary/15 bg-primary/[0.035] p-3 text-xs leading-5 text-muted-foreground"
+            data-testid="notice-price-privacy"
+          >
+            <ShieldCheck
+              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+              aria-hidden
+            />
+            الأسعار تُحمّل من سجلات حسابك. الأسعار القديمة غير المرتبطة تبقى
+            ظاهرة وقابلة للتحرير، وملف الاستيراد لا يُحفظ ضمن بياناتك.
+          </div>
+          {prices.isSuccess && (
+            <p
+              className="flex items-center justify-center gap-2 text-center text-xs text-muted-foreground"
+              data-testid="text-price-reference-note"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden /> يمكنك تعديل
+              المرجع أو حذفه في أي وقت.
+            </p>
+          )}
         </div>
       )}
-
-      {prices.isSuccess && <p className="mt-7 flex items-center justify-center gap-2 text-center text-xs text-muted-foreground" data-testid="text-price-reference-note"><RotateCcw className="h-3.5 w-3.5" aria-hidden /> يمكنك تعديل المرجع أو حذفه في أي وقت.</p>}
     </WorkspaceFrame>
   );
-}
-
-function formatUpdatedAt(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'غير معروف';
-  return new Intl.DateTimeFormat('ar-KW', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
 }

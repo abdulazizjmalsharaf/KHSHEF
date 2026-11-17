@@ -13,6 +13,7 @@ import InvoiceListPage from '@/pages/invoice-list';
 import NewInvoicePage from '@/pages/new-invoice';
 import InvoiceDetailPage from '@/pages/invoice-detail';
 import SupplierPricesPage from '@/pages/supplier-prices';
+import SuppliersPage from '@/pages/suppliers';
 import { AuthProvider } from '@/components/auth-provider';
 import { AuthGate } from '@/components/auth-gate';
 import {
@@ -47,6 +48,9 @@ function Router() {
           </Route>
           <Route path="/supplier-prices">
             <AuthGate><SupplierPricesPage /></AuthGate>
+          </Route>
+          <Route path="/suppliers">
+            <AuthGate><SuppliersPage /></AuthGate>
           </Route>
           <Route path="/invoices">
             <AuthGate><InvoiceListPage /></AuthGate>
