@@ -14,6 +14,13 @@ import type {
 const BUCKET = 'invoice-documents';
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  pdf: 'application/pdf',
+};
 
 type AnalysisResult = {
   extraction: InvoiceExtraction;
@@ -27,12 +34,19 @@ function cleanFileName(file: File) {
 }
 
 function validateDocument(file: File, label: string) {
-  if (!ALLOWED_TYPES.has(file.type)) {
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  const fallbackType = MIME_BY_EXTENSION[extension];
+  const contentType = file.type || fallbackType;
+  if (!contentType || !ALLOWED_TYPES.has(contentType) || (fallbackType && contentType !== fallbackType)) {
     throw new Error(`صيغة ${label} غير مدعومة. ارفع JPG أو PNG أو WebP أو PDF.`);
+  }
+  if (file.size <= 0) {
+    throw new Error(`ملف ${label} فارغ. اختر صورة أو PDF صالحًا.`);
   }
   if (file.size > MAX_FILE_BYTES) {
     throw new Error(`حجم ${label} أكبر من 10 ميغابايت.`);
   }
+  return contentType;
 }
 
 function throwFor(error: { message?: string } | null, fallback: string): never {
@@ -56,9 +70,14 @@ async function functionErrorCode(error: unknown, data: unknown): Promise<string>
   return '';
 }
 
-async function createInvoice(userId: string, invoiceFile: File, receiptFile?: File | null) {
-  validateDocument(invoiceFile, 'الفاتورة');
-  if (receiptFile) validateDocument(receiptFile, 'سند الاستلام');
+async function createInvoice(
+  userId: string,
+  invoiceFile: File,
+  supplierId: string | null,
+  receiptFile?: File | null,
+) {
+  const invoiceType = validateDocument(invoiceFile, 'الفاتورة');
+  const receiptType = receiptFile ? validateDocument(receiptFile, 'سند الاستلام') : null;
 
   const supabase = getSupabaseClient();
   const invoiceId = crypto.randomUUID();
@@ -70,7 +89,7 @@ async function createInvoice(userId: string, invoiceFile: File, receiptFile?: Fi
 
   try {
     const { error: invoiceUploadError } = await supabase.storage.from(BUCKET).upload(invoicePath, invoiceFile, {
-      contentType: invoiceFile.type,
+      contentType: invoiceType,
       upsert: false,
     });
     if (invoiceUploadError) throwFor(invoiceUploadError, 'تعذر حفظ صورة الفاتورة.');
@@ -78,7 +97,7 @@ async function createInvoice(userId: string, invoiceFile: File, receiptFile?: Fi
 
     if (receiptFile && receiptPath) {
       const { error: receiptUploadError } = await supabase.storage.from(BUCKET).upload(receiptPath, receiptFile, {
-        contentType: receiptFile.type,
+        contentType: receiptType!,
         upsert: false,
       });
       if (receiptUploadError) throwFor(receiptUploadError, 'تعذر حفظ صورة سند الاستلام.');
@@ -87,6 +106,7 @@ async function createInvoice(userId: string, invoiceFile: File, receiptFile?: Fi
 
     const { error: rowError } = await supabase.from('invoices').insert({
       id: invoiceId,
+      supplier_id: supplierId || null,
       invoice_path: invoicePath,
       receipt_path: receiptPath,
       status: 'under_review',
@@ -101,6 +121,8 @@ async function createInvoice(userId: string, invoiceFile: File, receiptFile?: Fi
       const messages: Record<string, string> = {
         ai_not_configured: 'خدمة قراءة الفواتير غير مفعّلة بعد. يلزم ضبط مفتاح الذكاء الاصطناعي في أسرار Supabase.',
         unreadable_invoice: 'لم نتمكن من قراءة الفاتورة. ارفع صورة أوضح أو ملف PDF كامل.',
+        invoice_not_found: 'الفاتورة غير متاحة لحسابك. أعد رفعها من جديد.',
+        invoice_supplier_unavailable: 'المورد المحدد غير متاح الآن. حدّث قائمة الموردين ثم أعد المحاولة.',
         invoice_image_unavailable: 'تعذر فتح الملف المحفوظ. أعد رفع الفاتورة.',
         receipt_image_unavailable: 'تعذر فتح سند الاستلام. أعد رفعه أو احذفه وأكمل بدونه.',
         unsupported_file_type: 'صيغة الملف غير مدعومة. استخدم JPG أو PNG أو WebP أو PDF.',
@@ -134,7 +156,12 @@ async function saveVerifiedReview(
     body: { action: 'verify', invoiceId, extraction },
   });
   if (error || !data?.extraction || !Array.isArray(data.checks)) {
-    throw new Error('تعذر إكمال التحقق الحسابي. أعد المحاولة.');
+    const apiError = await functionErrorCode(error, data);
+    const messages: Record<string, string> = {
+      invoice_not_found: 'الفاتورة غير متاحة لحسابك. حدّث الصفحة وحاول مرة أخرى.',
+      invoice_supplier_unavailable: 'المورد المحدد غير متاح الآن. اختر المورد مجددًا قبل المتابعة.',
+    };
+    throw new Error(messages[apiError] || 'تعذر إكمال التحقق الحسابي. أعد المحاولة.');
   }
   const verified = data as AnalysisResult;
   const { error: saveError } = await supabase.rpc('save_invoice_review', {
@@ -150,8 +177,11 @@ async function saveVerifiedReview(
 export function useCreateInvoice(userId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ invoiceFile, receiptFile }: { invoiceFile: File; receiptFile?: File | null }) =>
-      createInvoice(userId, invoiceFile, receiptFile),
+    mutationFn: ({ invoiceFile, supplierId, receiptFile }: {
+      invoiceFile: File;
+      supplierId?: string | null;
+      receiptFile?: File | null;
+    }) => createInvoice(userId, invoiceFile, supplierId ?? null, receiptFile),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices', userId] }),
   });
 }

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'wouter';
 import { AlertCircle, ArrowRight, Camera, CheckCircle2, FileImage, FilePlus2, FileText, LockKeyhole, Trash2, UploadCloud } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { useCreateInvoice } from '@/hooks/use-invoices';
+import { useSuppliers } from '@/hooks/use-suppliers';
 import { PageIntro, WorkspaceFrame } from '@/pages/invoice-workspace';
 
 type UploadSlotProps = {
@@ -63,7 +64,9 @@ function formatSize(size: number) {
 export default function NewInvoicePage() {
   const { user, loading: authLoading } = useAuth();
   const createInvoice = useCreateInvoice(user?.id ?? '');
+  const suppliers = useSuppliers(user?.id);
   const [, setLocation] = useLocation();
+  const [supplierId, setSupplierId] = useState('');
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState('');
@@ -82,7 +85,7 @@ export default function NewInvoicePage() {
       return;
     }
     try {
-      const invoiceId = await createInvoice.mutateAsync({ invoiceFile, receiptFile });
+      const invoiceId = await createInvoice.mutateAsync({ invoiceFile, supplierId: supplierId || null, receiptFile });
       setLocation(`/invoices/${invoiceId}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'تعذر رفع الفاتورة. تحقق من الملف ثم حاول مرة أخرى.');
@@ -99,6 +102,31 @@ export default function NewInvoicePage() {
       ) : (
         <div className="mx-auto grid max-w-5xl gap-7 lg:grid-cols-[minmax(0,1fr)_300px]">
           <form onSubmit={submit} className="space-y-4" aria-busy={createInvoice.isPending} data-testid="form-new-invoice">
+            {suppliers.isLoading ? (
+              <section className="space-y-3 rounded-2xl border border-border bg-card p-5" aria-label="جارٍ تحميل الموردين" data-testid="status-invoice-suppliers-loading">
+                <div className="h-4 w-28 animate-pulse rounded bg-muted" />
+                <div className="h-11 animate-pulse rounded-xl bg-muted" />
+              </section>
+            ) : suppliers.isError ? (
+              <section className="rounded-2xl border border-accent/35 bg-accent/[0.08] p-4" role="status" data-testid="status-invoice-suppliers-error">
+                <p className="text-sm leading-6 text-muted-foreground">سنحاول معرفة المورد من الفاتورة. يمكنك متابعة الرفع، أو إعادة تحميل القائمة لاختيار مورد محفوظ.</p>
+                <button type="button" onClick={() => void suppliers.refetch()} className="mt-2 min-h-9 rounded-lg px-3 text-sm font-semibold text-primary underline underline-offset-4" data-testid="button-retry-invoice-suppliers">إعادة تحميل الموردين</button>
+              </section>
+            ) : !suppliers.data?.length ? (
+              <section className="rounded-2xl border border-accent/35 bg-accent/[0.08] p-5" data-testid="state-invoice-no-suppliers">
+                <h2 className="font-semibold">مطابقة تلقائية للمورد</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">سنستخرج الاسم من الفاتورة. أضف المورد إذا أردت مقارنة الأسعار بالفواتير السابقة.</p>
+                <Link href="/suppliers" className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-primary/25 bg-background px-4 text-sm font-semibold text-primary" data-testid="link-create-invoice-supplier">إدارة الموردين <ArrowRight className="h-4 w-4" aria-hidden /></Link>
+              </section>
+            ) : (
+              <section className="rounded-2xl border border-border/80 bg-card p-5" data-testid="panel-invoice-supplier">
+                <label htmlFor="invoice-supplier" className="mb-2 block text-sm font-semibold">ربط اختياري بمورد محفوظ</label>
+                <select id="invoice-supplier" value={supplierId} onChange={(event) => { setSupplierId(event.target.value); setValidationError(''); }} className="min-h-12 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="select-invoice-supplier">
+                  <option value="">اكتشاف تلقائي من الفاتورة</option>
+                  {suppliers.data.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+                </select>
+              </section>
+            )}
             <UploadSlot title="فاتورة المورد" actionLabel="ارفع صورة الفاتورة" subtitle="صورة واضحة أو PDF · JPG أو PNG أو WebP أو PDF · حتى 10 ميغابايت" file={invoiceFile} required onChange={setInvoiceFile} testId="invoice" capture />
             <UploadSlot title="سند الاستلام أو الطلب" subtitle="اختياري — أرفق ما يساعد على مقارنة الأصناف والكميات" file={receiptFile} onChange={setReceiptFile} testId="receipt" />
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm, type FieldPath } from 'react-hook-form';
-import { Link, useRoute } from 'wouter';
-import { AlertCircle, BadgeCheck, Check, CheckCircle2, ChevronLeft, CircleAlert, Clipboard, FileCheck2, FileText, Image, LoaderCircle, LockKeyhole, MessageCircle, PencilLine, ShieldCheck, ThumbsDown, ThumbsUp, X } from 'lucide-react';
+import { Link, useLocation, useRoute } from 'wouter';
+import { AlertCircle, BadgeCheck, Check, CheckCircle2, ChevronLeft, CircleAlert, CircleDollarSign, Clipboard, FileCheck2, FileText, Image, LoaderCircle, LockKeyhole, MessageCircle, PencilLine, ShieldCheck, ThumbsDown, ThumbsUp, X } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { useInvoice, useInvoiceDocument, useInvoiceItems, useSaveInvoiceReview, useSetInvoiceStatus } from '@/hooks/use-invoices';
 import type { InvoiceCheck, InvoiceExtraction, InvoiceStatus } from '@/lib/invoice-types';
@@ -127,7 +127,7 @@ function ConfidenceReview({ fieldKey, label, confidence, acknowledged, onConfirm
   );
 }
 
-function CheckCard({ check, index }: { check: InvoiceCheck; index: number }) {
+function CheckCard({ check, index, onAddPrice }: { check: InvoiceCheck; index: number; onAddPrice?: () => void }) {
   const isDifference = check.severity === 'difference';
   return (
     <article className={`rounded-xl border p-4 ${isDifference ? 'border-destructive/25 bg-destructive/[0.035]' : 'border-accent/30 bg-accent/[0.07]'}`} data-testid={`card-invoice-check-${index}`}>
@@ -136,7 +136,7 @@ function CheckCard({ check, index }: { check: InvoiceCheck; index: number }) {
           <span className={`mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-lg ${isDifference ? 'bg-destructive/10 text-destructive' : 'bg-accent/15 text-[hsl(30_75%_30%)]'}`}>
             {isDifference ? <AlertCircle className="h-4 w-4" aria-hidden /> : <CircleAlert className="h-4 w-4" aria-hidden />}
           </span>
-          <div><h3 className="text-sm font-semibold leading-6">{check.title}</h3><p className="mt-1 text-xs leading-6 text-muted-foreground">{check.detail}</p></div>
+          <div className="min-w-0 flex-1"><h3 className="text-sm font-semibold leading-6">{check.title}</h3><p className="mt-1 text-xs leading-6 text-muted-foreground">{check.detail}</p>{onAddPrice && <button type="button" onClick={onAddPrice} className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-primary/25 bg-card px-3 text-xs font-semibold text-primary hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid={`button-check-add-price-${index}`}><CircleDollarSign className="h-3.5 w-3.5" aria-hidden /> تسجيل السعر المتفق عليه</button>}</div>
         </div>
         {check.amountAffected && <span className={`shrink-0 text-left font-mono text-sm font-semibold tabular-nums ${isDifference ? 'text-destructive' : 'text-foreground'}`} dir="ltr" data-testid={`text-check-amount-${index}`}>{money(check.amountAffected, check.currency)}</span>}
       </div>
@@ -162,6 +162,7 @@ function whatsappMessage(supplier: string | null, invoiceNumber: string | null, 
 
 export default function InvoiceDetailPage() {
   const [, params] = useRoute('/invoices/:invoiceId');
+  const [, setLocation] = useLocation();
   const invoiceId = params?.invoiceId;
   const { user, loading: authLoading } = useAuth();
   const invoiceQuery = useInvoice(invoiceId);
@@ -180,6 +181,21 @@ export default function InvoiceDetailPage() {
   const [copyError, setCopyError] = useState('');
   const form = useForm<InvoiceExtraction>({ defaultValues: invoice?.extracted_data });
   const extraction = invoice?.extracted_data;
+  const addMissingPrice = (check: InvoiceCheck) => {
+    if (!invoice?.supplier_id || !check.itemName) return;
+    try {
+      sessionStorage.setItem('kashef.pendingSupplierPrice', JSON.stringify({
+        supplierId: invoice.supplier_id,
+        itemName: check.itemName,
+        unit: check.unit ?? '',
+        unitPrice: check.suggestedUnitPrice ?? '',
+        currency: invoice.currency ?? 'KWD',
+      }));
+      setLocation('/supplier-prices');
+    } catch {
+      setActionError('تعذر تجهيز بيانات السعر. انتقل إلى قائمة الأسعار وأضفه يدويًا.');
+    }
+  };
   const lowFields = useMemo(() => extraction ? fieldConfidence(extraction).filter((field) => lowConfidence(field.confidence)) : [], [extraction]);
 
   useEffect(() => {
@@ -406,14 +422,23 @@ export default function InvoiceDetailPage() {
                 </div>
                 {invoice.checks?.length ? (
                   <div>
-                    <div className="mb-3 flex items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/[0.06] p-4" data-testid="result-invoice-discrepancy">
-                      <CircleAlert className="h-5 w-5 shrink-0 text-destructive" aria-hidden />
-                      <div><p className="font-semibold text-destructive">فيها فروقات</p><p className="mt-1 text-xs text-muted-foreground">راجع المبلغ المتأثر في كل تنبيه قبل اتخاذ القرار.</p></div>
-                    </div>
-                    <div className="space-y-2.5">{invoice.checks.map((check, index) => <CheckCard key={`${check.code}-${index}`} check={check} index={index} />)}</div>
+                    {invoice.checks.some((check) => check.severity === 'difference') ? (
+                      <div className="mb-3 flex items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/[0.06] p-4" data-testid="result-invoice-discrepancy">
+                        <CircleAlert className="h-5 w-5 shrink-0 text-destructive" aria-hidden />
+                        <div><p className="font-semibold text-destructive">توجد فروقات</p><p className="mt-1 text-xs text-muted-foreground">راجع المبلغ المتأثر في كل فحص قبل اتخاذ القرار.</p></div>
+                      </div>
+                    ) : (
+                      <div className="mb-3 flex items-center gap-3 rounded-xl border border-accent/35 bg-accent/[0.09] p-4" data-testid="result-invoice-warnings">
+                        <CircleAlert className="h-5 w-5 shrink-0 text-[hsl(30_75%_30%)]" aria-hidden />
+                        <div><p className="font-semibold text-[hsl(30_75%_30%)]">ملاحظات للمراجعة</p><p className="mt-1 text-xs text-muted-foreground">هذه تنبيهات للمراجعة وليست فروقات حسابية.</p></div>
+                      </div>
+                    )}
+                    <div className="space-y-2.5">{invoice.checks.map((check, index) => <CheckCard key={`${check.code}-${index}`} check={check} index={index} onAddPrice={check.code === 'missing_agreed_price' && invoice.supplier_id && check.itemName ? () => addMissingPrice(check) : undefined} />)}</div>
                   </div>
                 ) : invoice.status === 'matched' || invoice.status === 'approved' ? (
                   <div className="flex items-start gap-3 rounded-xl border border-primary/25 bg-primary/[0.06] p-4" data-testid="result-invoice-matched"><BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden /><div><p className="font-semibold text-primary">الفاتورة سليمة</p><p className="mt-1 text-sm leading-6">لم تظهر فروقات في الفحوصات الحسابية ومقارنة المورد.</p></div></div>
+                ) : invoice.status === 'under_review' ? (
+                  <div className="flex items-start gap-3 rounded-xl border border-accent/35 bg-accent/[0.08] p-4" data-testid="result-invoice-under-review"><CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-[hsl(30_75%_30%)]" aria-hidden /><div><p className="font-semibold text-foreground">الفاتورة قيد المراجعة</p><p className="mt-1 text-sm leading-6 text-muted-foreground">لم تكتمل نتيجة الفحص بعد. راجع الحقول المقروءة قبل اتخاذ القرار.</p></div></div>
                 ) : (
                   <div className="flex items-start gap-3 rounded-xl border border-accent/35 bg-accent/[0.08] p-4" data-testid="result-invoice-needs-review"><CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-[hsl(30_75%_30%)]" aria-hidden /><div><p className="font-semibold text-foreground">تحتاج مراجعة الحقول</p><p className="mt-1 text-sm leading-6 text-muted-foreground">لم تظهر فروقات حسابية، لكن بعض القراءات تحتاج تأكيدًا قبل اعتماد الفاتورة.</p></div></div>
                 )}

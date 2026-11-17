@@ -1,5 +1,13 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import OpenAI from "npm:openai";
+import {
+  compareReceiptQuantities,
+  fromMicros,
+  fromMicrosExact,
+  invoiceMathDifference,
+  lineMathDifference,
+  toMicros,
+} from "./deterministic.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,6 +63,8 @@ type Extraction = {
   totalConfidence: number;
   receiptItems: ReceiptItem[];
   supplierKey?: string;
+  supplierId?: string | null;
+  selectedSupplierName?: string | null;
 };
 type Check = {
   code: string;
@@ -63,6 +73,10 @@ type Check = {
   detail: string;
   amountAffected: string | null;
   currency: string;
+  itemKey?: string;
+  itemName?: string | null;
+  unit?: string | null;
+  suggestedUnitPrice?: string | null;
 };
 
 const invoiceSchema = {
@@ -164,27 +178,40 @@ function normalizeInvoiceNumber(input: string | null | undefined): string {
   return (input ?? "").normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-function toMicros(value: string | null | undefined): bigint | null {
-  if (!value) return null;
-  const normalized = value
-    .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-    .replace(/٫/g, ".")
-    .replace(/[٬,\s]/g, "")
-    .replace(/[^\d.-]/g, "");
-  const match = normalized.match(/^(-?)(\d+)(?:\.(\d{1,6}))?$/);
-  if (!match) return null;
-  const fraction = (match[3] ?? "").padEnd(6, "0");
-  const micros = BigInt(match[2]) * 1_000_000n + BigInt(fraction || "0");
-  return match[1] === "-" ? -micros : micros;
+function normalizeNumber(value: unknown): string | null {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const micros = toMicros(String(value));
+  return micros === null ? null : fromMicrosExact(micros);
 }
 
-function fromMicros(value: bigint): string {
-  const negative = value < 0n;
-  const absolute = negative ? -value : value;
-  const thousandths = (absolute + 500n) / 1000n;
-  const whole = thousandths / 1000n;
-  const fraction = String(thousandths % 1000n).padStart(3, "0");
-  return `${negative ? "-" : ""}${whole}.${fraction}`;
+function validIsoDate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day
+    ? value
+    : null;
+}
+
+function normalizeCurrency(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  const normalized = normalizeKey(raw);
+  if (normalized.includes("kwd") || normalized.includes("kuwaiti dinar") || normalized.includes("دينار كويتي") || normalized === "د ك") return "KWD";
+  if (normalized.includes("usd") || normalized.includes("us dollar")) return "USD";
+  if (normalized.includes("sar") || normalized.includes("saudi riyal")) return "SAR";
+  if (normalized.includes("bhd") || normalized.includes("bahraini dinar")) return "BHD";
+  if (normalized.includes("aed") || normalized.includes("uae dirham")) return "AED";
+  if (normalized.includes("qar") || normalized.includes("qatari riyal")) return "QAR";
+  if (normalized.includes("eur") || normalized.includes("euro")) return "EUR";
+  return /^[A-Za-z]{3}$/.test(raw) ? raw.toUpperCase() : null;
 }
 
 function validConfidence(value: unknown): number {
@@ -194,45 +221,120 @@ function validConfidence(value: unknown): number {
 }
 
 function enrichExtraction(raw: Extraction): Extraction {
-  const currency = (raw.currency || "KWD").trim().toUpperCase();
-  const supplierName = raw.supplierName?.trim() || null;
+  const recognizedCurrency = normalizeCurrency(raw.currency);
+  const rawCurrency = typeof raw.currency === "string" ? raw.currency.trim().slice(0, 12) : "";
+  const currency = recognizedCurrency || rawCurrency || "KWD";
+  const supplierName = typeof raw.supplierName === "string" ? raw.supplierName.trim().slice(0, 160) || null : null;
+  const invoiceNumber = typeof raw.invoiceNumber === "string" ? raw.invoiceNumber.trim().slice(0, 120) || null : null;
+  const invoiceDate = validIsoDate(raw.invoiceDate);
+  const items = Array.isArray(raw.items) ? raw.items : [];
+  const additionalFees = Array.isArray(raw.additionalFees) ? raw.additionalFees : [];
+  const receiptItems = Array.isArray(raw.receiptItems) ? raw.receiptItems : [];
   return {
     ...raw,
     supplierName,
     supplierKey: normalizeKey(supplierName),
-    invoiceNumber: raw.invoiceNumber?.trim() || null,
-    invoiceNumberKey: normalizeInvoiceNumber(raw.invoiceNumber),
-    invoiceDate: /^\d{4}-\d{2}-\d{2}$/.test(raw.invoiceDate ?? "") ? raw.invoiceDate : null,
+    invoiceNumber,
+    invoiceNumberKey: normalizeInvoiceNumber(invoiceNumber),
+    invoiceDate,
     currency,
     supplierNameConfidence: validConfidence(raw.supplierNameConfidence),
-    invoiceNumberConfidence: validConfidence(raw.invoiceNumberConfidence),
-    invoiceDateConfidence: validConfidence(raw.invoiceDateConfidence),
-    currencyConfidence: raw.currency ? validConfidence(raw.currencyConfidence) : 0.2,
-    totalConfidence: validConfidence(raw.totalConfidence),
-    items: (raw.items ?? []).map((item) => ({
-      ...item,
-      name: item.name?.trim() || null,
-      itemKey: normalizeKey(item.name),
-      nameConfidence: validConfidence(item.nameConfidence),
-      quantityConfidence: validConfidence(item.quantityConfidence),
-      unitConfidence: validConfidence(item.unitConfidence),
-      unitPriceConfidence: validConfidence(item.unitPriceConfidence),
-      lineTotalConfidence: validConfidence(item.lineTotalConfidence),
-    })),
-    additionalFees: (raw.additionalFees ?? []).map((fee) => ({
-      ...fee,
-      name: fee.name?.trim() || null,
-      feeKey: normalizeKey(fee.name),
-      nameConfidence: validConfidence(fee.nameConfidence),
-      amountConfidence: validConfidence(fee.amountConfidence),
-    })),
-    receiptItems: (raw.receiptItems ?? []).map((item) => ({
-      ...item,
-      itemKey: normalizeKey(item.name),
-      nameConfidence: validConfidence(item.nameConfidence),
-      quantityConfidence: validConfidence(item.quantityConfidence),
-      unitConfidence: validConfidence(item.unitConfidence),
-    })),
+    invoiceNumberConfidence: invoiceNumber ? validConfidence(raw.invoiceNumberConfidence) : 0.2,
+    invoiceDateConfidence: invoiceDate ? validConfidence(raw.invoiceDateConfidence) : 0.2,
+    currencyConfidence: recognizedCurrency ? validConfidence(raw.currencyConfidence) : 0.2,
+    total: normalizeNumber(raw.total),
+    totalConfidence: normalizeNumber(raw.total) === null ? 0.2 : validConfidence(raw.totalConfidence),
+    items: items.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const item = entry as ExtractedItem;
+      const name = typeof item.name === "string" ? item.name.trim().slice(0, 160) || null : null;
+      const quantity = normalizeNumber(item.quantity);
+      const unitPrice = normalizeNumber(item.unitPrice);
+      const lineTotal = normalizeNumber(item.lineTotal);
+      return [{
+        ...item,
+        name,
+        itemKey: normalizeKey(name),
+        quantity,
+        unit: typeof item.unit === "string" ? item.unit.trim().slice(0, 80) || null : null,
+        unitPrice,
+        lineTotal,
+        nameConfidence: name ? validConfidence(item.nameConfidence) : 0.1,
+        quantityConfidence: quantity === null ? 0.1 : validConfidence(item.quantityConfidence),
+        unitConfidence: validConfidence(item.unitConfidence),
+        unitPriceConfidence: unitPrice === null ? 0.1 : validConfidence(item.unitPriceConfidence),
+        lineTotalConfidence: lineTotal === null ? 0.1 : validConfidence(item.lineTotalConfidence),
+      }];
+    }),
+    additionalFees: additionalFees.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const fee = entry as ExtractedFee;
+      const name = typeof fee.name === "string" ? fee.name.trim().slice(0, 100) || null : null;
+      const amount = normalizeNumber(fee.amount);
+      return [{
+        ...fee,
+        name,
+        feeKey: normalizeKey(name),
+        amount,
+        nameConfidence: name ? validConfidence(fee.nameConfidence) : 0.1,
+        amountConfidence: amount === null ? 0.1 : validConfidence(fee.amountConfidence),
+      }];
+    }),
+    receiptItems: receiptItems.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const item = entry as ReceiptItem;
+      const name = typeof item.name === "string" ? item.name.trim().slice(0, 160) || null : null;
+      const quantity = normalizeNumber(item.quantity);
+      return [{
+        ...item,
+        name,
+        itemKey: normalizeKey(name),
+        quantity,
+        unit: typeof item.unit === "string" ? item.unit.trim().slice(0, 80) || null : null,
+        nameConfidence: name ? validConfidence(item.nameConfidence) : 0.1,
+        quantityConfidence: quantity === null ? 0.1 : validConfidence(item.quantityConfidence),
+        unitConfidence: validConfidence(item.unitConfidence),
+      }];
+    }),
+  };
+}
+
+async function applySelectedSupplier(
+  supabase: ReturnType<typeof createClient>,
+  invoiceId: string,
+  supplierId: string | null,
+  extraction: Extraction,
+): Promise<Extraction | null> {
+  if (!supplierId && !extraction.supplierKey) {
+    return { ...extraction, supplierId: null, selectedSupplierName: null };
+  }
+  let supplierQuery = supabase
+    .from("suppliers")
+    .select("id, name, supplier_key")
+  if (supplierId) supplierQuery = supplierQuery.eq("id", supplierId);
+  const { data: suppliers, error } = await supplierQuery;
+  if (error) return null;
+  const supplier = supplierId
+    ? suppliers?.[0]
+    : suppliers?.find((entry) =>
+      normalizeKey(entry.supplier_key || "") === extraction.supplierKey
+      || normalizeKey(entry.name) === extraction.supplierKey
+    );
+  if (!supplier) {
+    return supplierId ? null : { ...extraction, supplierId: null, selectedSupplierName: null };
+  }
+  if (!supplierId) {
+    const { error: linkError } = await supabase
+      .from("invoices")
+      .update({ supplier_id: supplier.id })
+      .eq("id", invoiceId);
+    if (linkError) return null;
+  }
+  return {
+    ...extraction,
+    supplierId: supplier.id,
+    selectedSupplierName: supplier.name,
+    supplierKey: supplier.supplier_key || normalizeKey(supplier.name),
   };
 }
 
@@ -246,6 +348,7 @@ function hasLowConfidence(extraction: Extraction): boolean {
     ...extraction.items.flatMap((item) => [
       item.nameConfidence,
       item.quantityConfidence,
+      item.unitConfidence,
       item.unitPriceConfidence,
       item.lineTotalConfidence,
     ]),
@@ -274,12 +377,14 @@ async function runChecks(
   const checks: Check[] = [];
   const currency = extraction.currency || "KWD";
   const supplierKey = extraction.supplierKey || "";
+  const supplierId = extraction.supplierId || null;
   const add = (
     code: string,
     severity: Check["severity"],
     title: string,
     detail: string,
     amountAffected: bigint | null = null,
+    itemDetails: Pick<Check, "itemKey" | "itemName" | "unit" | "suggestedUnitPrice"> = {},
   ) => checks.push({
     code,
     severity,
@@ -287,22 +392,25 @@ async function runChecks(
     detail,
     amountAffected: amountAffected === null ? null : fromMicros(amountAffected),
     currency,
+    ...itemDetails,
   });
 
-  let lineSum = 0n;
-  let canCheckTotal = extraction.items.length > 0;
+  if (
+    extraction.selectedSupplierName
+    && extraction.supplierName
+    && normalizeKey(extraction.selectedSupplierName) !== normalizeKey(extraction.supplierName)
+  ) {
+    add(
+      "supplier_name_mismatch",
+      "warning",
+      "اسم المورد المقروء مختلف عن اختيارك",
+      `اخترت ${extraction.selectedSupplierName}، بينما ظهرت قراءة المستند باسم ${extraction.supplierName}. تحقق من الفاتورة.`,
+    );
+  }
+
   for (const item of extraction.items) {
-    const quantity = toMicros(item.quantity);
-    const unitPrice = toMicros(item.unitPrice);
-    const lineTotal = toMicros(item.lineTotal);
-    if (quantity === null || unitPrice === null || lineTotal === null) {
-      canCheckTotal = false;
-      continue;
-    }
-    lineSum += lineTotal;
-    const expected = (quantity * unitPrice) / 1_000_000n;
-    const difference = expected > lineTotal ? expected - lineTotal : lineTotal - expected;
-    if (difference > 1_000n) {
+    const difference = lineMathDifference(item.quantity, item.unitPrice, item.lineTotal);
+    if (difference !== null) {
       add(
         "line_math",
         "difference",
@@ -313,30 +421,20 @@ async function runChecks(
     }
   }
 
-  let feeSum = 0n;
-  for (const fee of extraction.additionalFees) {
-    const amount = toMicros(fee.amount);
-    if (amount === null) {
-      canCheckTotal = false;
-      continue;
-    }
-    feeSum += amount;
-  }
-
   const invoiceTotal = toMicros(extraction.total);
-  if (invoiceTotal === null) canCheckTotal = false;
-  if (canCheckTotal && invoiceTotal !== null) {
-    const calculated = lineSum + feeSum;
-    const difference = calculated > invoiceTotal ? calculated - invoiceTotal : invoiceTotal - calculated;
-    if (difference > 1_000n) {
-      add(
-        "invoice_math",
-        "difference",
-        "الإجمالي لا يطابق مجموع الأصناف والرسوم",
-        `المجموع المحسوب ${fromMicros(calculated)} ${currency} مقابل إجمالي الفاتورة ${fromMicros(invoiceTotal)} ${currency}.`,
-        difference,
-      );
-    }
+  const invoiceDifference = invoiceMathDifference(
+    extraction.items.map((item) => item.lineTotal),
+    extraction.additionalFees.map((fee) => fee.amount),
+    extraction.total,
+  );
+  if (invoiceDifference) {
+    add(
+      "invoice_math",
+      "difference",
+      "الإجمالي لا يطابق مجموع الأصناف والرسوم",
+      `المجموع المحسوب ${fromMicros(invoiceDifference.calculated)} ${currency} مقابل إجمالي الفاتورة ${fromMicros(invoiceTotal!)} ${currency}.`,
+      invoiceDifference.difference,
+    );
   }
 
   if (supplierKey && extraction.invoiceNumberKey) {
@@ -378,12 +476,14 @@ async function runChecks(
 
   let history: Array<{ id: string; extracted_data: { extraction?: Extraction } | null }> = [];
   if (supplierKey) {
-    const { data } = await supabase.from("invoices")
+    let historyQuery = supabase.from("invoices")
       .select("id, extracted_data")
       .eq("supplier_key", supplierKey)
       .in("status", ["matched", "approved"])
       .order("created_at", { ascending: false })
       .limit(12);
+    if (invoiceId) historyQuery = historyQuery.neq("id", invoiceId);
+    const { data } = await historyQuery;
     history = data ?? [];
   }
 
@@ -407,11 +507,14 @@ async function runChecks(
   }
   const agreedPrices = new Map<string, string>();
   if (supplierKey && productKeys.length) {
-    const { data: agreed } = await supabase.from("supplier_price_agreements")
+    let agreedQuery = supabase.from("supplier_price_agreements")
       .select("item_key, unit_key, unit_price")
-      .eq("supplier_key", supplierKey)
       .eq("currency", currency)
       .in("item_key", productKeys);
+    agreedQuery = supplierId
+      ? agreedQuery.eq("supplier_id", supplierId)
+      : agreedQuery.eq("supplier_key", supplierKey);
+    const { data: agreed } = await agreedQuery;
     for (const price of agreed ?? []) {
       agreedPrices.set(`${price.item_key}|${price.unit_key}`, String(price.unit_price));
     }
@@ -424,6 +527,21 @@ async function runChecks(
     const currentPrice = toMicros(item.unitPrice);
     const oldPrice = toMicros(referencePrice);
     const quantity = toMicros(item.quantity);
+    if (supplierKey && item.itemKey && !agreedPrice) {
+      add(
+        "missing_agreed_price",
+        "warning",
+        "لا يوجد سعر متفق عليه لهذا الصنف",
+        `أضف سعر ${item.name ?? "الصنف"} لدى ${extraction.selectedSupplierName || extraction.supplierName || "المورد"} حتى تتمكن من مقارنته بالفواتير القادمة.`,
+        toMicros(item.lineTotal),
+        {
+          itemKey: item.itemKey,
+          itemName: item.name,
+          unit: item.unit,
+          suggestedUnitPrice: item.unitPrice,
+        },
+      );
+    }
     if (currentPrice !== null && oldPrice !== null && quantity !== null && currentPrice > oldPrice) {
       const unitIncrease = currentPrice - oldPrice;
       const reference = agreedPrice ? "السعر المتفق عليه" : "آخر فاتورة معتمدة";
@@ -476,47 +594,71 @@ async function runChecks(
   }
 
   if (hasReceipt) {
-    const receiptByKey = new Map(
-      extraction.receiptItems
-        .filter((item) => item.itemKey && item.quantity)
-        .map((item) => [item.itemKey!, item]),
+    const receiptChecks = compareReceiptQuantities(
+      extraction.items,
+      extraction.receiptItems,
+      normalizeKey,
     );
-    if (receiptByKey.size === 0) {
-      add("receipt_unreadable", "warning", "تعذر قراءة كميات سند الاستلام", "راجع صورة سند الاستلام أو أعد رفع صورة أوضح.");
-    } else {
-      for (const item of extraction.items) {
-        const billed = toMicros(item.quantity);
-        if (!item.itemKey || billed === null) continue;
-        const receivedItem = receiptByKey.get(item.itemKey);
-        if (!receivedItem) {
-          const lineTotal = toMicros(item.lineTotal);
-          add(
-            "receipt_item_missing",
-            "difference",
-            "صنف الفاتورة غير ظاهر في سند الاستلام",
-            `لم نجد "${item.name ?? "الصنف"}" في أصناف سند الاستلام.`,
-            lineTotal,
-          );
-          continue;
-        }
-        const received = toMicros(receivedItem.quantity);
-        const unitPrice = toMicros(item.unitPrice);
-        if (received !== null && received < billed) {
-          const shortage = billed - received;
-          const amount = unitPrice === null ? null : (shortage * unitPrice) / 1_000_000n;
-          add(
-            "receipt_quantity",
-            "difference",
-            "الكمية المستلمة أقل من المفوترة",
-            `${item.name ?? "الصنف"}: المفوتر ${fromMicros(billed)} والمستلم ${fromMicros(received)}.`,
-            amount,
-          );
-        }
+    for (const check of receiptChecks) {
+      const itemDetails = {
+        itemKey: check.itemKey,
+        itemName: check.itemName,
+        unit: check.unit,
+      };
+      if (check.code === "receipt_unreadable") {
+        add("receipt_unreadable", "warning", "تعذر قراءة كميات سند الاستلام", "راجع صورة سند الاستلام أو أعد رفع صورة أوضح.");
+      } else if (check.code === "invoice_quantity_unreadable") {
+        add("invoice_quantity_unreadable", "warning", "تعذر قراءة كمية صنف في الفاتورة", `راجع كمية ${check.itemName || "الصنف"} قبل المقارنة.`, null, itemDetails);
+      } else if (check.code === "receipt_unit_mismatch") {
+        add(
+          "receipt_unit_mismatch",
+          "warning",
+          "وحدة الصنف مختلفة في سند الاستلام",
+          `${check.itemName || "الصنف"}: الفاتورة بوحدة ${check.unit || "غير محددة"}، وسند الاستلام بوحدة ${(check.otherUnits || []).map((unit) => unit || "غير محددة").join(" أو ")}. لا يمكن مقارنة الكميتين بدقة.`,
+          null,
+          itemDetails,
+        );
+      } else if (check.code === "receipt_item_missing") {
+        add(
+          "receipt_item_missing",
+          "difference",
+          "صنف الفاتورة غير ظاهر في سند الاستلام",
+          `لم نجد "${check.itemName || "الصنف"}" في أصناف سند الاستلام.`,
+          check.amountAffected ?? null,
+          itemDetails,
+        );
+      } else if (check.code === "receipt_quantity") {
+        add(
+          "receipt_quantity",
+          "difference",
+          "الكمية المستلمة أقل من المفوترة",
+          `${check.itemName || "الصنف"}: المفوتر ${fromMicros(check.billed!)} والمستلم ${fromMicros(check.received!)} ${check.unit || ""}.`,
+          check.amountAffected ?? null,
+          itemDetails,
+        );
+      } else if (check.code === "receipt_quantity_excess") {
+        add(
+          "receipt_quantity_excess",
+          "warning",
+          "الكمية المستلمة أكثر من المفوترة",
+          `${check.itemName || "الصنف"}: المفوتر ${fromMicros(check.billed!)} والمستلم ${fromMicros(check.received!)} ${check.unit || ""}.`,
+          null,
+          itemDetails,
+        );
+      } else if (check.code === "receipt_extra_item") {
+        add(
+          "receipt_extra_item",
+          "warning",
+          "صنف زائد في سند الاستلام",
+          `${check.itemName || "صنف غير معروف"}: الكمية ${fromMicros(check.received!)} ${check.unit || ""} ولا يظهر في الفاتورة.`,
+          null,
+          itemDetails,
+        );
       }
     }
   }
 
-  const status = checks.length > 0
+  const status = checks.some((check) => check.severity === "difference")
     ? "discrepancy"
     : hasLowConfidence(extraction)
     ? "under_review"
@@ -582,22 +724,33 @@ Deno.serve(async (request: Request) => {
         return jsonResponse({ error: "invalid_review_payload" }, 400);
       }
       const { data: ownedInvoice, error: invoiceError } = await supabase
-        .from("invoices").select("id, receipt_path").eq("id", invoiceId).maybeSingle();
+        .from("invoices").select("id, receipt_path, supplier_id").eq("id", invoiceId).maybeSingle();
       if (invoiceError || !ownedInvoice) return jsonResponse({ error: "invoice_not_found" }, 404);
-      extraction = enrichExtraction(body.extraction as Extraction);
+      const enriched = await applySelectedSupplier(
+        supabase,
+        invoiceId,
+        ownedInvoice.supplier_id,
+        enrichExtraction(body.extraction as Extraction),
+      );
+      if (!enriched) return jsonResponse({ error: "invoice_supplier_unavailable" }, 409);
+      extraction = enriched;
       const result = await runChecks(supabase, invoiceId, extraction, Boolean(ownedInvoice.receipt_path));
       return jsonResponse({ extraction, ...result });
     }
 
-    const invoicePath = typeof body?.invoicePath === "string" ? body.invoicePath : "";
-    const receiptPath = typeof body?.receiptPath === "string" ? body.receiptPath : null;
+    if (!invoiceId) return jsonResponse({ error: "invalid_document_path" }, 400);
+    const { data: ownedInvoice, error: ownedInvoiceError } = await supabase
+      .from("invoices")
+      .select("id, invoice_path, receipt_path, supplier_id")
+      .eq("id", invoiceId)
+      .maybeSingle();
+    if (ownedInvoiceError || !ownedInvoice) return jsonResponse({ error: "invoice_not_found" }, 404);
+    const invoicePath = ownedInvoice.invoice_path;
+    const receiptPath = ownedInvoice.receipt_path;
     if (
-      !invoiceId
-      || !invoicePath.startsWith(`${authData.user.id}/${invoiceId}/`)
+      !invoicePath.startsWith(`${authData.user.id}/${invoiceId}/`)
       || (receiptPath && !receiptPath.startsWith(`${authData.user.id}/${invoiceId}/`))
-    ) {
-      return jsonResponse({ error: "invalid_document_path" }, 400);
-    }
+    ) return jsonResponse({ error: "invalid_document_path" }, 400);
 
     const openAiKey = Deno.env.get("OPENAI_API_KEY");
     if (!openAiKey) return jsonResponse({ error: "ai_not_configured" }, 503);
@@ -605,7 +758,7 @@ Deno.serve(async (request: Request) => {
     const { data: invoiceBlob, error: invoiceDownloadError } = await supabase
       .storage.from("invoice-documents").download(invoicePath);
     if (invoiceDownloadError || !invoiceBlob) return jsonResponse({ error: "invoice_image_unavailable" }, 400);
-    if (invoiceBlob.size > 10 * 1024 * 1024) return jsonResponse({ error: "file_too_large" }, 413);
+    if (invoiceBlob.size === 0 || invoiceBlob.size > 10 * 1024 * 1024) return jsonResponse({ error: "file_too_large" }, 413);
     const mimeType = invoiceBlob.type.toLowerCase();
     if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(mimeType)) {
       return jsonResponse({ error: "unsupported_file_type" }, 415);
@@ -627,13 +780,10 @@ Deno.serve(async (request: Request) => {
     }
 
     if (receiptPath) {
-      if (!receiptPath.startsWith(`${authData.user.id}/${invoiceId}/`)) {
-        return jsonResponse({ error: "invalid_document_path" }, 400);
-      }
       const { data: receiptBlob, error: receiptDownloadError } = await supabase
         .storage.from("invoice-documents").download(receiptPath);
       if (receiptDownloadError || !receiptBlob) return jsonResponse({ error: "receipt_image_unavailable" }, 400);
-      if (receiptBlob.size > 10 * 1024 * 1024) return jsonResponse({ error: "file_too_large" }, 413);
+      if (receiptBlob.size === 0 || receiptBlob.size > 10 * 1024 * 1024) return jsonResponse({ error: "file_too_large" }, 413);
       const receiptType = receiptBlob.type.toLowerCase();
       if (!["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(receiptType)) {
         return jsonResponse({ error: "unsupported_file_type" }, 415);
@@ -670,7 +820,10 @@ Deno.serve(async (request: Request) => {
 
     if (!response.output_text) return jsonResponse({ error: "unreadable_invoice" }, 422);
     try {
-      extraction = enrichExtraction(JSON.parse(response.output_text) as Extraction);
+      const extracted = enrichExtraction(JSON.parse(response.output_text) as Extraction);
+      const withSupplier = await applySelectedSupplier(supabase, invoiceId, ownedInvoice.supplier_id, extracted);
+      if (!withSupplier) return jsonResponse({ error: "invoice_supplier_unavailable" }, 409);
+      extraction = withSupplier;
     } catch {
       return jsonResponse({ error: "unreadable_invoice" }, 422);
     }

@@ -41,6 +41,8 @@ export type InvoiceExtraction = {
   supplierName: string | null;
   supplierNameConfidence: number;
   supplierKey?: string;
+  supplierId?: string | null;
+  selectedSupplierName?: string | null;
   invoiceNumber: string | null;
   invoiceNumberConfidence: number;
   invoiceNumberKey?: string | null;
@@ -62,10 +64,15 @@ export type InvoiceCheck = {
   detail: string;
   amountAffected: string | null;
   currency: string;
+  itemKey?: string;
+  itemName?: string | null;
+  unit?: string | null;
+  suggestedUnitPrice?: string | null;
 };
 
 export type InvoiceRow = {
   id: string;
+  supplier_id: string | null;
   supplier_name: string | null;
   supplier_key: string;
   invoice_number: string | null;

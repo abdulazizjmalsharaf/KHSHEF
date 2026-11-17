@@ -47,6 +47,13 @@ type ReviewRow = {
   unitPrice: string;
   confidence: number;
 };
+type PendingSupplierPrice = {
+  supplierId: string;
+  itemName: string;
+  unit: string;
+  unitPrice: string;
+  currency: string;
+};
 const blankForm: PriceForm = {
   supplierId: "",
   itemName: "",
@@ -97,6 +104,8 @@ export default function SupplierPricesPage() {
   const [confirmedKwd, setConfirmedKwd] = useState(false);
   const [importError, setImportError] = useState("");
   const [importNotice, setImportNotice] = useState("");
+  const [pendingCarryover, setPendingCarryover] =
+    useState<PendingSupplierPrice | null>(null);
 
   useEffect(() => {
     if (
@@ -111,6 +120,77 @@ export default function SupplierPricesPage() {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+
+  useEffect(() => {
+    const key = "kashef.pendingSupplierPrice";
+    let raw: string | null;
+    try {
+      raw = sessionStorage.getItem(key);
+      if (raw === null) return;
+      sessionStorage.removeItem(key);
+    } catch {
+      setFormError("تعذر الوصول إلى بيانات السعر المنقولة من الفاتورة.");
+      return;
+    }
+    try {
+      const value: unknown = JSON.parse(raw);
+      if (!value || typeof value !== "object") {
+        setFormError("تعذر قراءة بيانات السعر المنقولة من الفاتورة.");
+        return;
+      }
+      const pending = value as Record<string, unknown>;
+      setPendingCarryover({
+        supplierId: typeof pending.supplierId === "string" ? pending.supplierId : "",
+        itemName: typeof pending.itemName === "string" ? pending.itemName : "",
+        unit: typeof pending.unit === "string" ? pending.unit : "",
+        unitPrice:
+          typeof pending.unitPrice === "string" || typeof pending.unitPrice === "number"
+            ? String(pending.unitPrice)
+            : "",
+        currency: typeof pending.currency === "string" ? pending.currency : "KWD",
+      });
+    } catch {
+      setFormError("تعذر قراءة بيانات السعر المنقولة من الفاتورة.");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pendingCarryover || suppliers.isLoading) return;
+    if (suppliers.isError) {
+      setForm({
+        supplierId: "",
+        itemName: pendingCarryover.itemName.trim(),
+        unit: pendingCarryover.unit,
+        unitPrice: pendingCarryover.unitPrice,
+        currency: pendingCarryover.currency || "KWD",
+      });
+      setFormError("تعذر تحميل الموردين. بقيت بيانات الصنف والسعر؛ أعد تحميل القائمة ثم اختر المورد.");
+      setNotice("نُقلت بيانات السعر من الفاتورة؛ راجعها قبل الحفظ.");
+      setPendingCarryover(null);
+      return;
+    }
+    const matchingSupplier = suppliers.data?.find(
+      (supplier) => supplier.id === pendingCarryover.supplierId,
+    );
+    const validItemName = Boolean(pendingCarryover.itemName.trim());
+    setForm({
+      supplierId: matchingSupplier?.id ?? "",
+      itemName: validItemName ? pendingCarryover.itemName : "",
+      unit: pendingCarryover.unit,
+      unitPrice: pendingCarryover.unitPrice,
+      currency: pendingCarryover.currency || "KWD",
+    });
+    setEditing(null);
+    setFormError(
+      !validItemName
+        ? "اسم الصنف غير صالح. أدخله يدويًا قبل حفظ السعر."
+        : !matchingSupplier
+          ? "لم نعثر على المورد المحفوظ لهذه الفاتورة. اختر المورد الصحيح قبل الحفظ."
+          : "",
+    );
+    setNotice("نُقلت بيانات السعر من الفاتورة؛ راجعها قبل الحفظ.");
+    setPendingCarryover(null);
+  }, [pendingCarryover, suppliers.isLoading, suppliers.isError]);
 
   const resetForm = () => {
     setEditing(null);
@@ -520,6 +600,9 @@ export default function SupplierPricesPage() {
                       className="min-h-11 w-full rounded-xl border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       data-testid="select-price-currency"
                     >
+                      {!currencies.includes(form.currency) && form.currency && (
+                        <option value={form.currency}>{form.currency}</option>
+                      )}
                       {currencies.map((currency) => (
                         <option key={currency} value={currency}>
                           {currency}
