@@ -10,6 +10,8 @@ import RegisterPage from '@/pages/register';
 import ForgotPasswordPage from '@/pages/forgot-password';
 import ResetPasswordPage from '@/pages/reset-password';
 import InvoiceListPage from '@/pages/invoice-list';
+import DashboardPage from '@/pages/dashboard';
+import SettingsPage from '@/pages/settings';
 import NewInvoicePage from '@/pages/new-invoice';
 import InvoiceDetailPage from '@/pages/invoice-detail';
 import SupplierPricesPage from '@/pages/supplier-prices';
@@ -38,7 +40,7 @@ function Router() {
           <Route path="/forgot-password" component={ForgotPasswordPage} />
           <Route path="/reset-password" component={ResetPasswordPage} />
           <Route path="/app">
-            <AuthGate><InvoiceListPage /></AuthGate>
+            <AuthGate><DashboardPage /></AuthGate>
           </Route>
           <Route path="/invoices/new">
             <AuthGate><NewInvoicePage /></AuthGate>
@@ -54,6 +56,9 @@ function Router() {
           </Route>
           <Route path="/invoices">
             <AuthGate><InvoiceListPage /></AuthGate>
+          </Route>
+          <Route path="/settings">
+            <AuthGate><SettingsPage /></AuthGate>
           </Route>
           <Route component={NotFound} />
         </Switch>

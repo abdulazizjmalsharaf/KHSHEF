@@ -101,7 +101,7 @@ export type InvoiceItemRow = {
 
 export type InvoiceListRow = Pick<
   InvoiceRow,
-  'id' | 'supplier_name' | 'invoice_number' | 'invoice_date' | 'currency' | 'total_amount' | 'status' | 'created_at'
+  'id' | 'supplier_name' | 'invoice_number' | 'invoice_date' | 'currency' | 'total_amount' | 'status' | 'created_at' | 'checks'
 >;
 
 export type SupplierPriceRow = {

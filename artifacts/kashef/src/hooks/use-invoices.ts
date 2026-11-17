@@ -193,7 +193,7 @@ export function useInvoiceList(userId: string | undefined) {
     queryFn: async () => {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase.from('invoices')
-        .select('id, supplier_name, invoice_number, invoice_date, currency, total_amount, status, created_at')
+        .select('id, supplier_name, invoice_number, invoice_date, currency, total_amount, status, created_at, checks')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as InvoiceListRow[];
