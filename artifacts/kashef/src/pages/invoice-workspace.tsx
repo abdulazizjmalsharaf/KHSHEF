@@ -1,12 +1,31 @@
-import { type ReactNode } from 'react';
-import { Link } from 'wouter';
-import { ArrowLeft, FileCheck2, LockKeyhole } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Link, useLocation } from 'wouter';
+import { ArrowLeft, FileCheck2, LockKeyhole, LogOut } from 'lucide-react';
+import { useAuth } from '@/components/auth-provider';
 
 export function WorkspaceFrame({ children }: { children: ReactNode }) {
+  const { user, signOut } = useAuth();
+  const [, setLocation] = useLocation();
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    setSignOutError('');
+    try {
+      await signOut();
+      setLocation('/login');
+    } catch {
+      setSignOutError('تعذّر تسجيل الخروج. حاول مرة أخرى.');
+    } finally {
+      setSigningOut(false);
+    }
+  };
+
   return (
     <div dir="rtl" lang="ar" className="grain min-h-[100dvh] overflow-x-clip bg-background text-foreground">
       <header className="border-b border-border/80 bg-card/75">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-7">
+        <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-2 px-3 py-3 sm:flex-nowrap sm:gap-4 sm:px-7 sm:py-4">
           <Link href="/invoices" className="group inline-flex items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-kashef-logo">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-primary font-display text-2xl text-accent shadow-sm" aria-hidden>ك</span>
             <span>
@@ -14,15 +33,29 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
               <span className="block text-[11px] text-muted-foreground">مكتب مراجعة الفواتير</span>
             </span>
           </Link>
-          <nav aria-label="التنقل في مساحة كاشف" className="flex items-center gap-1 sm:gap-2">
-            <Link href="/invoices" className="inline-flex min-h-10 items-center rounded-lg px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm" data-testid="link-workspace-invoices">الفواتير</Link>
-            <Link href="/supplier-prices" className="inline-flex min-h-10 items-center rounded-lg px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm" data-testid="link-workspace-supplier-prices">أسعار الموردين</Link>
+          <nav aria-label="التنقل في مساحة كاشف" className="order-3 flex w-full items-center justify-center gap-1 sm:order-none sm:w-auto sm:gap-2">
+            <Link href="/invoices" className="inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3 sm:text-sm" data-testid="link-workspace-invoices">الفواتير</Link>
+            <Link href="/supplier-prices" className="inline-flex min-h-10 items-center rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-3 sm:text-sm" data-testid="link-workspace-supplier-prices">أسعار الموردين</Link>
           </nav>
           <div className="hidden items-center gap-2 rounded-full border border-primary/15 bg-background px-3 py-2 text-xs text-muted-foreground lg:flex" data-testid="text-private-workspace">
             <LockKeyhole className="h-3.5 w-3.5 text-primary" aria-hidden />
             بيانات خاصة بحسابك
           </div>
+          {user && (
+            <button
+              type="button"
+              onClick={() => void handleSignOut()}
+              disabled={signingOut}
+              aria-label={signingOut ? 'جارٍ تسجيل الخروج' : 'تسجيل الخروج'}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60 sm:text-sm"
+              data-testid="button-sign-out"
+            >
+              <LogOut className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">{signingOut ? 'جارٍ الخروج…' : 'تسجيل الخروج'}</span>
+            </button>
+          )}
         </div>
+        {signOutError && <p role="alert" className="mx-auto max-w-7xl px-4 pb-3 text-xs text-destructive sm:px-7" data-testid="status-sign-out-error">{signOutError}</p>}
       </header>
       <main className="mx-auto w-full max-w-7xl px-4 py-7 sm:px-7 sm:py-10">
         {children}

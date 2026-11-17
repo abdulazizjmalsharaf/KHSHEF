@@ -6,6 +6,9 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import Home from '@/pages/home';
 import NotFound from '@/pages/not-found';
 import LoginPage from '@/pages/login';
+import RegisterPage from '@/pages/register';
+import ForgotPasswordPage from '@/pages/forgot-password';
+import ResetPasswordPage from '@/pages/reset-password';
 import InvoiceListPage from '@/pages/invoice-list';
 import NewInvoicePage from '@/pages/new-invoice';
 import InvoiceDetailPage from '@/pages/invoice-detail';
@@ -30,6 +33,12 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/login" component={LoginPage} />
+          <Route path="/register" component={RegisterPage} />
+          <Route path="/forgot-password" component={ForgotPasswordPage} />
+          <Route path="/reset-password" component={ResetPasswordPage} />
+          <Route path="/app">
+            <AuthGate><InvoiceListPage /></AuthGate>
+          </Route>
           <Route path="/invoices/new">
             <AuthGate><NewInvoicePage /></AuthGate>
           </Route>

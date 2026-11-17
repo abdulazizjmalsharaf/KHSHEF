@@ -10,8 +10,8 @@
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - `pnpm --filter @workspace/kashef run dev` — Kashef homepage and invoice workspace (managed workflow)
-- Supplier saving requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Replit Secrets (and Vercel environment variables for a future deployment). These are public browser configuration, never a service-role key.
-- The private invoice workspace uses Supabase Google Auth and the `invoice-documents` private bucket. Configure the Google OAuth provider and redirect allowlist in Supabase Auth; set `OPENAI_API_KEY` only in Supabase Edge Function secrets.
+- Supabase Auth uses `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Replit Secrets (and Vercel environment variables for a future deployment). These are public browser configuration, never a service-role key.
+- The private invoice workspace supports Google and email/password Auth with password recovery. Configure Google OAuth and allow `/app` and `/reset-password` in the Supabase Auth redirect URL list; set `OPENAI_API_KEY` only in Supabase Edge Function secrets.
 
 ## Stack
 
@@ -25,18 +25,19 @@
 ## Where things live
 
 - `supabase/migrations/` — Supabase schema migrations, applied through Supabase, not Replit's managed database.
-- `artifacts/kashef/src/lib/suppliers.ts` — insert-only Supabase Data API client.
+- `artifacts/kashef/src/lib/suppliers.ts` — authenticated supplier insert using the current Supabase session.
+- `supabase/migrations/20261118090000_company_profiles_and_owner_suppliers.sql` — additive company-profile schema and private supplier RLS; review and apply through Supabase separately.
 - `supabase/functions/invoice-review/` — authenticated invoice extraction and deterministic checks; it reads files from the private bucket using the caller's JWT and never uses a service-role key.
 
 ## Architecture decisions
 
-- The original supplier-name form remains insert-only for anonymous visitors; it cannot list, read, update, or delete supplier rows.
-- The invoice workspace is a separate authenticated surface. Invoice rows, line items, agreed supplier prices, and private documents are restricted to the signed-in user's Supabase identity with RLS and storage policies. The browser uses only the publishable key.
-- Google OAuth and the Edge Function's `OPENAI_API_KEY` must be configured in Supabase before sign-in and AI analysis can run. Never put either provider secret in source code or GitHub.
+- Supplier rows and company profiles are private to their owner through RLS. Legacy anonymous supplier rows remain in place without an owner and are not exposed to accounts.
+- The invoice workspace is an authenticated surface at `/app`. Invoice rows, line items, agreed supplier prices, and private documents are restricted to the signed-in user's Supabase identity with RLS and storage policies. The browser uses only the publishable key.
+- Google OAuth and email redirect URLs must be configured in Supabase for sign-in and recovery. The Edge Function's `OPENAI_API_KEY` belongs in Supabase Function secrets. Never put provider secrets in source code or GitHub.
 
 ## Product
 
-Arabic RTL homepage plus a private invoice workspace with Google sign-in, invoice history, file-only invoice upload, optional receipt/order upload, extraction review, deterministic checks, approval/dispute status, and supplier agreed-price management. The original public supplier-name form still only inserts names.
+Arabic RTL homepage plus a private invoice workspace with Google and email sign-in, invoice history, file-only invoice upload, optional receipt/order upload, extraction review, deterministic checks, approval/dispute status, and supplier agreed-price management.
 
 The homepage also provides a fixed section navigation, saved light/dark preference (system by default), searchable feature status cards with saved favorites, approved monthly KWD plan prices, and a local demo cart. Theme, favorites and demo cart are browser-local, not account data.
 

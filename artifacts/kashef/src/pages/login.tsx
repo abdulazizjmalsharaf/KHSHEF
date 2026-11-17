@@ -1,94 +1,77 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowLeft, Check, FileCheck2, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
-import { WorkspaceFrame } from '@/pages/invoice-workspace';
+import { AuthFrame, AuthField, AuthMessage, AuthSubmit, GoogleMark, type AuthMethods } from '@/components/auth-presentation';
 
 export default function LoginPage() {
-  const { user, loading, error: authError, signInWithGoogle } = useAuth();
+  const auth = useAuth() as ReturnType<typeof useAuth> & AuthMethods;
   const [, setLocation] = useLocation();
-  const [signInError, setSignInError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (user && !loading) setLocation('/invoices');
-  }, [user, loading, setLocation]);
+    if (!auth.loading && auth.user) setLocation('/app');
+  }, [auth.loading, auth.user, setLocation]);
 
-  const signIn = async () => {
-    setSignInError('');
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError('');
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('أدخل بريدًا إلكترونيًا صحيحًا.');
+    if (!password) return setError('أدخل كلمة المرور.');
     setBusy(true);
     try {
-      await signInWithGoogle();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '';
-      setSignInError(/provider.*(not enabled|disabled)|unsupported provider/i.test(message)
-        ? 'تسجيل Google غير مفعّل في Supabase بعد. فعّل مزوّد Google وأضف بيانات OAuth ورابط إعادة التوجيه.'
-        : message || 'تعذر بدء الدخول بحساب Google. حاول مرة أخرى.');
+      await auth.signInWithPassword(email.trim(), password);
+      setLocation('/app');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر تسجيل الدخول. تحقق من بياناتك وحاول مرة أخرى.');
+    } finally {
       setBusy(false);
     }
-  };
+  }
+
+  async function signInGoogle() {
+    setError('');
+    setGoogleBusy(true);
+    try {
+      await auth.signInWithGoogle();
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : '';
+      setError(/provider.*(not enabled|disabled)|unsupported provider/i.test(message)
+        ? 'تسجيل Google غير مفعّل بعد. حاول بالبريد الإلكتروني أو تواصل مع الدعم.'
+        : message || 'تعذر بدء الدخول باستخدام Google. حاول مرة أخرى.');
+      setGoogleBusy(false);
+    }
+  }
 
   return (
-    <WorkspaceFrame>
-      <div className="mx-auto grid max-w-5xl items-center gap-8 py-4 md:grid-cols-[1fr_.88fr] md:gap-14 md:py-12">
-        <section className="rise order-2 rounded-[2rem] border border-border/80 bg-card p-6 shadow-[0_22px_70px_-50px_hsl(var(--primary)/.45)] sm:p-9 md:order-1" data-testid="card-login">
-          <div className="mb-7 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-primary">
-            <LockKeyhole className="h-5 w-5" aria-hidden />
+    <AuthFrame eyebrow="مساحة عملك الخاصة" title={<>راجع فاتورتك،<br />قبل أن تعتمدها.</>} description="ادخل لمراجعة فواتير الموردين بهدوء. ملفاتك ونتائجها لا يراها إلا حسابك.">
+      <form onSubmit={submit} noValidate className="space-y-4" data-testid="form-login">
+        <AuthField id="login-email" label="البريد الإلكتروني" type="email" value={email} onChange={setEmail} autoComplete="email" placeholder="name@example.com" icon={<Mail />} />
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <label htmlFor="login-password" className="text-sm font-semibold text-foreground">كلمة المرور</label>
+            <Link href="/forgot-password" className="text-xs font-semibold text-primary underline-offset-4 hover:underline" data-testid="link-forgot-password">نسيت كلمة المرور؟</Link>
           </div>
-          <p className="text-sm font-semibold text-primary">مساحة عملك الخاصة</p>
-          <h1 className="mt-2 font-display text-3xl leading-tight text-foreground sm:text-4xl" data-testid="heading-login">راجع فاتورتك،<br />قبل أن تعتمدها.</h1>
-          <p className="mt-4 max-w-md text-sm leading-7 text-muted-foreground sm:text-base">ادخل بحساب Google لرفع فواتير الموردين ومراجعة تفاصيلها بهدوء. ملفاتك ونتائجها لا يراها إلا حسابك.</p>
-
-          {(authError || signInError) && <p role="alert" className="mt-5 rounded-xl border border-destructive/25 bg-destructive/[0.06] px-4 py-3 text-sm leading-6 text-destructive" data-testid="status-login-error">{signInError || authError}</p>}
-
-          <button type="button" onClick={signIn} disabled={loading || busy} className="mt-7 flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-primary px-5 font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-65" data-testid="button-sign-in-google">
-            {busy || loading ? <span className="h-5 w-5 animate-pulse rounded-full border-2 border-primary-foreground/70 border-t-transparent" aria-hidden /> : <GoogleMark />}
-            {busy ? 'جارٍ تحويلك إلى Google…' : loading ? 'جارٍ التحقق من الجلسة…' : 'المتابعة باستخدام Google'}
-            {!busy && !loading && <ArrowLeft className="h-4 w-4" aria-hidden />}
-          </button>
-
-          <p className="mt-5 text-center text-xs leading-6 text-muted-foreground" data-testid="text-login-privacy">
-            بالمتابعة، ستُحفظ الفواتير في مساحة خاصة بحسابك فقط.
-          </p>
-          <div className="mt-7 border-t border-border/70 pt-5">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-back-home">
-              العودة إلى كاشف
-            </Link>
+          <div className="relative">
+            <input id="login-password" data-testid="input-login-password" dir="ltr" type={showPassword ? 'text' : 'password'} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" placeholder="أدخل كلمة المرور" className="min-h-12 w-full rounded-xl border border-input bg-background px-4 pr-12 text-left text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15" />
+            <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} className="absolute inset-y-0 start-2 grid w-10 place-items-center rounded-lg text-muted-foreground hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="button-toggle-login-password">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
           </div>
-        </section>
-
-        <aside className="order-1 md:order-2" aria-label="مزايا مكتب المراجعة">
-          <div className="relative overflow-hidden rounded-[2rem] bg-primary p-7 text-primary-foreground sm:p-10">
-            <div className="girih absolute inset-0 opacity-70" aria-hidden />
-            <div className="relative">
-              <div className="mb-8 flex items-center gap-3">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl border border-primary-foreground/20 bg-primary-foreground/10"><FileCheck2 className="h-6 w-6 text-accent" aria-hidden /></span>
-                <span className="text-xs text-primary-foreground/70">دفتر مراجعة الموردين</span>
-              </div>
-              <p className="font-display text-3xl leading-relaxed sm:text-4xl">الأرقام الواضحة<br />تمنحك قرارًا أهدأ.</p>
-              <div className="mt-8 space-y-4">
-                {[
-                  'استخراج بيانات الفاتورة دون إدخال يدوي',
-                  'تنبيه عند انخفاض الثقة في قراءة حقل',
-                  'فحص الحسابات قبل اعتماد الفاتورة',
-                ].map((line, index) => (
-                  <p className="flex items-start gap-3 text-sm leading-6 text-primary-foreground/85" key={line} data-testid={`text-login-benefit-${index}`}>
-                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-accent/20 text-accent"><Check className="h-3.5 w-3.5" aria-hidden /></span>{line}
-                  </p>
-                ))}
-              </div>
-              <div className="mt-9 flex items-center gap-2 border-t border-primary-foreground/15 pt-5 text-xs text-primary-foreground/70" data-testid="text-login-security-note">
-                <ShieldCheck className="h-4 w-4 text-accent" aria-hidden />
-                الملفات تبقى ضمن مساحة حسابك الخاصة
-              </div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </WorkspaceFrame>
+        </div>
+        {error && <AuthMessage kind="error" testId="status-login-error">{error}</AuthMessage>}
+        <AuthSubmit pending={busy} testId="button-login-submit">{busy ? 'جارٍ تسجيل الدخول…' : 'تسجيل الدخول'} <ArrowLeft className="h-4 w-4" aria-hidden /></AuthSubmit>
+      </form>
+      <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />أو<span className="h-px flex-1 bg-border" /></div>
+      <button type="button" onClick={signInGoogle} disabled={googleBusy || busy || auth.loading} className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground transition hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60" data-testid="button-sign-in-google">
+        {googleBusy ? <span className="h-4 w-4 animate-pulse rounded-full border-2 border-primary border-t-transparent" aria-hidden /> : <GoogleMark />}
+        {googleBusy ? 'جارٍ التحويل…' : 'المتابعة باستخدام Google'}
+      </button>
+      <p className="mt-5 text-center text-xs leading-6 text-muted-foreground" data-testid="text-login-privacy"><LockKeyhole className="me-1 inline h-3.5 w-3.5 text-primary" aria-hidden />الفواتير محفوظة في مساحة خاصة بحسابك.</p>
+      <p className="mt-6 text-center text-sm text-muted-foreground">ليس لديك حساب؟ <Link href="/register" className="font-semibold text-primary underline-offset-4 hover:underline" data-testid="link-register">أنشئ حسابًا</Link></p>
+    </AuthFrame>
   );
-}
-
-function GoogleMark() {
-  return <span className="grid h-6 w-6 place-items-center rounded-full bg-card text-sm font-bold text-primary" aria-hidden>G</span>;
 }
