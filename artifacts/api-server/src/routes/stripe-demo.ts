@@ -28,6 +28,25 @@ function sessionSecret(): string {
   return value;
 }
 
+function safeFailureDetails(error: unknown) {
+  const detail = error && typeof error === "object"
+    ? error as Record<string, unknown>
+    : {};
+  const safeCode = (value: unknown) =>
+    typeof value === "string" && /^[A-Za-z0-9_]{1,64}$/.test(value) ? value : undefined;
+  return {
+    errorName: safeCode(detail.name),
+    errorType: safeCode(detail.type),
+    errorCode: safeCode(detail.code) ?? safeCode(detail.message),
+    errorStatus: Number.isInteger(detail.statusCode) ? detail.statusCode : undefined,
+    configuration: {
+      sessionSecretReady: Boolean(process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 16),
+      testSecretReady: Boolean(process.env.TEST_STRIPE_SECRET_KEY?.startsWith("sk_test_")),
+      testPublishableReady: Boolean(process.env.TEST_STRIPE_PUBLISHABLE_KEY?.startsWith("pk_test_")),
+    },
+  };
+}
+
 router.use(
   "/stripe",
   (_req, res, next) => {
@@ -66,8 +85,8 @@ router.get("/stripe/test-status", async (req, res): Promise<void> => {
         exchangeRateSource: quote.updated ? quote.source : null,
       }),
     );
-  } catch {
-    req.log.warn("Stripe test payment configuration is unavailable");
+  } catch (error) {
+    req.log.warn(safeFailureDetails(error), "Stripe test payment configuration is unavailable");
     res.json(
       GetStripeTestStatusResponse.parse({
         ready: false,
