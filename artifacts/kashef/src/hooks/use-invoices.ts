@@ -13,6 +13,8 @@ import type {
 
 const BUCKET = 'invoice-documents';
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MAX_GUEST_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_GUEST_INVOICES = 5;
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
 const MIME_BY_EXTENSION: Record<string, string> = {
   jpg: 'image/jpeg',
@@ -72,14 +74,26 @@ async function functionErrorCode(error: unknown, data: unknown): Promise<string>
 
 async function createInvoice(
   userId: string,
+  isGuest: boolean,
   invoiceFile: File,
   supplierId: string | null,
   receiptFile?: File | null,
 ) {
+  if (isGuest && (invoiceFile.size > MAX_GUEST_FILE_BYTES || (receiptFile && receiptFile.size > MAX_GUEST_FILE_BYTES))) {
+    throw new Error('حجم الملف لحساب التجربة يجب ألا يتجاوز 5 ميغابايت. أنشئ حسابًا لرفع ملفات أكبر.');
+  }
   const invoiceType = validateDocument(invoiceFile, 'الفاتورة');
   const receiptType = receiptFile ? validateDocument(receiptFile, 'سند الاستلام') : null;
 
   const supabase = getSupabaseClient();
+  if (isGuest) {
+    const { count, error: countError } = await supabase.from('invoices')
+      .select('id', { count: 'exact', head: true });
+    if (countError) throwFor(countError, 'تعذر التحقق من حد فواتير التجربة.');
+    if ((count ?? 0) >= MAX_GUEST_INVOICES) {
+      throw new Error('وصلت إلى حد التجربة: 5 فواتير. أنشئ حسابًا لمتابعة إضافة الفواتير.');
+    }
+  }
   const invoiceId = crypto.randomUUID();
   const invoicePath = `${userId}/${invoiceId}/invoice-${cleanFileName(invoiceFile)}`;
   const receiptPath = receiptFile
@@ -174,14 +188,14 @@ async function saveVerifiedReview(
   return verified;
 }
 
-export function useCreateInvoice(userId: string) {
+export function useCreateInvoice(userId: string, isGuest = false) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ invoiceFile, supplierId, receiptFile }: {
       invoiceFile: File;
       supplierId?: string | null;
       receiptFile?: File | null;
-    }) => createInvoice(userId, invoiceFile, supplierId ?? null, receiptFile),
+    }) => createInvoice(userId, isGuest, invoiceFile, supplierId ?? null, receiptFile),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invoices', userId] }),
   });
 }

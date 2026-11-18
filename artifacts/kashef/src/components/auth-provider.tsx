@@ -35,7 +35,8 @@ function friendlyEmailAuthError(error: unknown, action: 'sign-in' | 'sign-up' | 
   if (/email not confirmed/.test(message)) return 'أكد بريدك الإلكتروني من الرسالة التي أرسلناها، ثم سجّل الدخول.';
   if (/already registered|user already exists|email.*already.*(use|exist)/.test(message)) return 'هذا البريد مسجل من قبل. جرّب تسجيل الدخول.';
   if (/anonymous.*(disabled|not enabled)|anonymous_provider_disabled/.test(message)) return 'التجربة تحتاج تفعيل Anonymous Sign-Ins من إعدادات Supabase Auth.';
-  if (/manual.*link|identity.*link.*(disabled|not enabled)|linking.*disabled/.test(message)) return 'يلزم تفعيل ربط الهويات في إعدادات Supabase Auth حتى نربط بريدك بحساب التجربة من دون نقل بياناتك.';
+  if (/manual.*link|identity.*link.*(disabled|not enabled)|linking.*disabled/.test(message)) return 'فعّل Manual Linking من Supabase: Authentication ← Sign In / Providers. هذا مطلوب لربط بريدك بحساب التجربة نفسه.';
+  if (/redirect.*(not allowed|allowlist)|redirect_to_not_allowed/.test(message)) return 'رابط العودة غير مسموح. أضف رابط الموقع المنشور إلى قائمة Redirect URLs في إعدادات Supabase Auth.';
   if (/email_address_not_authorized|over_email_send_rate_limit|email rate limit/.test(message)) return 'تعذر إرسال رسالة التحقق: خدمة البريد الافتراضية في Supabase محدودة. اربط SMTP مخصصًا مثل Resend ثم أعد المحاولة.';
   if (/otp_expired|expired.*(token|otp|link)|token.*expired/.test(message)) return 'انتهت صلاحية رابط التأكيد. أرسل رابطًا جديدًا ثم افتحه مباشرة.';
   if (/invalid.*(token|otp|link)|token.*invalid/.test(message)) return 'رابط التأكيد غير صالح أو استُخدم من قبل. أرسل رابطًا جديدًا.';
@@ -91,6 +92,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription?.unsubscribe();
   }, [queryClient]);
+
+  useEffect(() => {
+    if (!user?.is_anonymous) return;
+    const storageKey = `kashef:guest-last-seen:${user.id}`;
+    const recordActivity = async () => {
+      const now = Date.now();
+      try {
+        const lastWrite = Number(localStorage.getItem(storageKey) || 0);
+        if (now - lastWrite < 24 * 60 * 60 * 1000) return;
+      } catch {
+        // The database remains the source of truth if browser storage is unavailable.
+      }
+
+      const { error: activityError } = await getSupabaseClient().from('anonymous_account_activity').upsert({
+        user_id: user.id,
+        last_seen_at: new Date(now).toISOString(),
+      }, { onConflict: 'user_id' });
+      if (activityError) {
+        console.error('Could not record guest account activity.', activityError.message);
+        return;
+      }
+      try {
+        localStorage.setItem(storageKey, String(now));
+      } catch {
+        // A future visit can retry the write if browser storage is unavailable.
+      }
+    };
+    void recordActivity();
+    const timer = window.setInterval(() => void recordActivity(), 24 * 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [user?.id, user?.is_anonymous]);
 
   const value = useMemo<AuthContextValue>(() => ({
     user,

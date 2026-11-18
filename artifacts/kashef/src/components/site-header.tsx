@@ -34,7 +34,7 @@ export function SiteHeader({ theme, onToggleTheme, cartCount, onOpenCart }: Prop
              {cartCount > 0 && <span className="absolute -start-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground">{cartCount}</span>}
           </button>
           <Link href="/login" className="hidden h-10 items-center rounded-xl px-3 text-sm font-semibold text-primary hover:bg-secondary sm:inline-flex" data-testid="link-login">{t('تسجيل الدخول')}</Link>
-          <Link href="/register" className="hidden h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:-translate-y-0.5 sm:inline-flex" data-testid="button-header-start">{t('ابدأ مجاناً')}</Link>
+          <Link href="/app" className="hidden h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:-translate-y-0.5 sm:inline-flex" data-testid="button-header-start">{t('ابدأ مجاناً')}</Link>
           <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? t('إغلاق القائمة') : t('فتح القائمة')} className="grid h-11 w-11 place-items-center rounded-xl border border-input text-primary md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="button-mobile-menu">
             {menuOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
           </button>
@@ -44,7 +44,7 @@ export function SiteHeader({ theme, onToggleTheme, cartCount, onOpenCart }: Prop
         <NavLinks mobile onNavigate={closeMenu} />
         <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
           <Link href="/login" onClick={closeMenu} className="inline-flex h-11 items-center justify-center rounded-xl border border-input font-semibold text-primary" data-testid="link-login-mobile">{t('تسجيل الدخول')}</Link>
-          <Link href="/register" onClick={closeMenu} className="inline-flex h-11 items-center justify-center rounded-xl bg-primary font-semibold text-primary-foreground" data-testid="button-header-start-mobile">{t('ابدأ مجاناً')}</Link>
+          <Link href="/app" onClick={closeMenu} className="inline-flex h-11 items-center justify-center rounded-xl bg-primary font-semibold text-primary-foreground" data-testid="button-header-start-mobile">{t('ابدأ مجاناً')}</Link>
         </div>
       </nav>}
     </header>

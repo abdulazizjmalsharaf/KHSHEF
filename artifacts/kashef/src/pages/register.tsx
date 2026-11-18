@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [created, setCreated] = useState(false);
   const [step, setStep] = useState<'details' | 'awaiting-email' | 'password'>('details');
   const [resendWait, setResendWait] = useState(0);
+  const [isGuestUpgradePending, setIsGuestUpgradePending] = useState(false);
   const isGuest = Boolean(auth.user?.is_anonymous);
 
   useEffect(() => {
@@ -29,11 +30,15 @@ export default function RegisterPage() {
       return;
     }
     const pendingId = localStorage.getItem('kashef:pending-guest-upgrade');
+    setIsGuestUpgradePending(pendingId === auth.user.id);
     if (!auth.user.is_anonymous && pendingId === auth.user.id) {
       setBusinessName(String(auth.user.user_metadata?.business_name || ''));
-      setEmail(auth.user.email || '');
-      setStep('password');
+      setEmail(auth.user.email || auth.user.new_email || '');
+      setStep(auth.user.email_confirmed_at ? 'password' : 'awaiting-email');
       return;
+    }
+    if (auth.user.is_anonymous && auth.user.new_email) {
+      setEmail((current) => current || auth.user!.new_email || '');
     }
     if (!auth.user.is_anonymous) setLocation('/app');
   }, [auth.loading, auth.user, auth.ensureGuestSession, setLocation]);
@@ -45,15 +50,20 @@ export default function RegisterPage() {
   }, [resendWait]);
 
   useEffect(() => {
-    const errorCode = new URLSearchParams(window.location.search).get('error_code');
+    const callbackParams = new URLSearchParams([
+      window.location.search.replace(/^\?/, ''),
+      window.location.hash.replace(/^#/, ''),
+    ].filter(Boolean).join('&'));
+    const errorCode = callbackParams.get('error_code');
     if (errorCode === 'otp_expired' || errorCode === 'access_denied') {
       setError('انتهت صلاحية رابط التأكيد أو تم استخدامه. أرسل رابطًا جديدًا ثم افتحه مباشرة.');
       setStep('awaiting-email');
-    } else if (new URLSearchParams(window.location.search).has('error')) {
+    } else if (callbackParams.has('error')) {
       setError('رابط التأكيد غير صالح أو استُخدم من قبل. أرسل رابطًا جديدًا.');
       setStep('awaiting-email');
     }
-  }, []);
+    if (auth.user?.is_anonymous && auth.user.new_email) setEmail(auth.user.new_email);
+  }, [auth.user]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError('');
@@ -68,6 +78,7 @@ export default function RegisterPage() {
         setResendWait(60);
       } else if (result.guestUpgrade) {
         localStorage.setItem('kashef:pending-guest-upgrade', auth.user?.id || '');
+        setIsGuestUpgradePending(true);
         setStep('password');
         setError('');
       } else if (result.needsEmailConfirmation) {
@@ -87,6 +98,7 @@ export default function RegisterPage() {
     setPending(true);
     try {
       await auth.finishGuestUpgrade(password, businessName || String(auth.user?.user_metadata?.business_name || ''));
+      setIsGuestUpgradePending(false);
       setLocation('/app');
     } catch (cause) {
       setError(t(cause instanceof Error ? cause.message : 'تعذر إكمال إنشاء الحساب. حاول مرة أخرى.'));
@@ -99,7 +111,7 @@ export default function RegisterPage() {
     setError('');
     setPending(true);
     try {
-      await auth.resendEmailConfirmation(email, isGuest);
+      await auth.resendEmailConfirmation(email, isGuestUpgradePending);
       setResendWait(60);
     } catch (cause) {
       setError(t(cause instanceof Error ? cause.message : 'تعذر إعادة إرسال رسالة التأكيد.'));
@@ -116,11 +128,12 @@ export default function RegisterPage() {
 
   return <AuthFrame eyebrow="ابدأ مساحة عملك" title={<>{t('حساب واحد،')}<br />{t('ومراجعة أوضح.')}</>} description="أدخل بيانات النشاط والبريد الإلكتروني لتبدأ استخدام كاشف.">
     {step === 'awaiting-email' ? <div className="space-y-5">
-      <AuthMessage kind="success" testId="status-register-success">
-        {t('أرسلنا رابط تأكيد إلى')} <b dir="ltr">{email}</b>. {t('تقدر تواصل التجربة الآن؛ بياناتك محفوظة بالحساب نفسه. افتح الرابط ثم ارجع هنا لإضافة كلمة المرور.')}
+      {!email && <><p className="text-sm leading-6 text-muted-foreground">{t('أدخل بريدك لإعادة إرسال رابط التأكيد.')}</p><AuthField id="register-email-retry" label="البريد الإلكتروني" type="email" value={email} onChange={setEmail} autoComplete="email" placeholder="name@example.com" icon={<Mail className="h-4 w-4" />} /></>}
+      <AuthMessage kind={email ? 'success' : 'error'} testId={email ? 'status-register-success' : 'status-register-error'}>
+        {email ? <>{t('أرسلنا رابط تأكيد إلى')} <b dir="ltr">{email}</b>. {t('تقدر تواصل التجربة الآن؛ بياناتك محفوظة بالحساب نفسه. افتح الرابط ثم ارجع هنا لإضافة كلمة المرور.')}</> : t('تعذر تحديد البريد. أدخله لإعادة إرسال رابط التأكيد.')}
       </AuthMessage>
       {error && <AuthMessage kind="error" testId="status-register-error">{t(error)}</AuthMessage>}
-      <button type="button" onClick={() => void resendLink()} disabled={pending || resendWait > 0} className="flex min-h-12 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-resend-confirmation">
+      <button type="button" onClick={() => void resendLink()} disabled={pending || resendWait > 0 || !email} className="flex min-h-12 w-full items-center justify-center rounded-xl border border-border bg-background px-4 text-sm font-semibold text-primary disabled:cursor-not-allowed disabled:opacity-50" data-testid="button-resend-confirmation">
         {pending ? t('جارٍ الإرسال…') : resendWait > 0 ? `${t('إعادة إرسال الرابط بعد')} ${resendWait} ${t('ثانية')}` : t('إعادة إرسال رابط التأكيد')}
       </button>
       <Link href="/app" className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground" data-testid="link-continue-guest">{t('متابعة التجربة')} <BackArrow className="h-4 w-4" aria-hidden /></Link>

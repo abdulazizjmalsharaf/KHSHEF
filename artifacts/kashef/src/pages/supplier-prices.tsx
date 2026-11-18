@@ -89,7 +89,7 @@ export default function SupplierPricesPage() {
   const suppliers = useSuppliers(user?.id);
   const savePrice = useSaveSupplierPrice(user?.id ?? "");
   const deletePrice = useDeleteSupplierPrice(user?.id);
-  const importList = useImportSupplierPriceList(user?.id);
+  const importList = useImportSupplierPriceList(user?.id, Boolean(user?.is_anonymous));
   const saveImport = useSaveSupplierPriceImport(user?.id);
   const [editing, setEditing] = useState<SupplierPriceRow | null>(null);
   const [deleting, setDeleting] = useState<SupplierPriceRow | null>(null);
@@ -940,7 +940,7 @@ export default function SupplierPricesPage() {
                     data-testid="input-price-list-file"
                   />
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    الحد الأقصى ١٠ ميغابايت. يُزال الملف المؤقت بعد القراءة.
+                    {user?.is_anonymous ? "حد التجربة ٥ ميغابايت لكل ملف. يُزال الملف المؤقت بعد القراءة." : "الحد الأقصى ١٠ ميغابايت. يُزال الملف المؤقت بعد القراءة."}
                   </p>
                 </div>
                 {file && (
@@ -1002,17 +1002,21 @@ export default function SupplierPricesPage() {
                     : "قراءة الملف ومراجعته"}
                 </button>
                 {importError && (
-                  <p
+                  <div
                     role="alert"
-                    className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm leading-5 text-destructive"
+                    className="rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm leading-5 text-destructive"
                     data-testid="status-price-import-error"
                   >
-                    <AlertCircle
-                      className="mt-0.5 h-4 w-4 shrink-0"
-                      aria-hidden
-                    />
-                    {importError}
-                  </p>
+                    <p className="flex items-start gap-2">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                      {importError}
+                    </p>
+                    {user?.is_anonymous && importError.includes("5 ميغابايت") && (
+                      <Link href="/register" className="mt-3 inline-flex min-h-9 items-center rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground" data-testid="link-price-import-upgrade">
+                        {t("إنشاء حساب للمتابعة")}
+                      </Link>
+                    )}
+                  </div>
                 )}
                 {importNotice && (
                   <p

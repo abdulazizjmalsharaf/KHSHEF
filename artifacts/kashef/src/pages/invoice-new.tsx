@@ -64,7 +64,7 @@ function formatSize(size: number) {
 
 export default function NewInvoicePage() {
   const { user, loading: authLoading } = useAuth();
-  const createInvoice = useCreateInvoice(user?.id ?? '');
+  const createInvoice = useCreateInvoice(user?.id ?? '', Boolean(user?.is_anonymous));
   const suppliers = useSuppliers(user?.id);
   const [, setLocation] = useLocation();
   const [supplierId, setSupplierId] = useState('');
@@ -128,11 +128,12 @@ export default function NewInvoicePage() {
                 </select>
               </section>
             )}
-            <UploadSlot title="فاتورة المورد" actionLabel="ارفع صورة الفاتورة" subtitle="صورة واضحة أو PDF · JPG أو PNG أو WebP أو PDF · حتى 10 ميغابايت" file={invoiceFile} required onChange={setInvoiceFile} testId="invoice" capture />
-            <UploadSlot title="سند الاستلام أو الطلب" subtitle="اختياري — أرفق ما يساعد على مقارنة الأصناف والكميات" file={receiptFile} onChange={setReceiptFile} testId="receipt" />
+            {user?.is_anonymous && <p className="rounded-xl border border-accent/30 bg-accent/[0.08] px-4 py-3 text-xs leading-5 text-muted-foreground" data-testid="text-guest-invoice-limits">{t('في التجربة: حتى 5 فواتير، و5 ميغابايت كحد أقصى لكل ملف.')}</p>}
+            <UploadSlot title="فاتورة المورد" actionLabel="ارفع صورة الفاتورة" subtitle={user?.is_anonymous ? 'صورة واضحة أو PDF · JPG أو PNG أو WebP أو PDF · حتى 5 ميغابايت' : 'صورة واضحة أو PDF · JPG أو PNG أو WebP أو PDF · حتى 10 ميغابايت'} file={invoiceFile} required onChange={setInvoiceFile} testId="invoice" capture />
+            <UploadSlot title="سند الاستلام أو الطلب" subtitle={user?.is_anonymous ? 'اختياري — بحد أقصى 5 ميغابايت' : 'اختياري — أرفق ما يساعد على مقارنة الأصناف والكميات'} file={receiptFile} onChange={setReceiptFile} testId="receipt" />
 
             {validationError && <p role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/[0.06] p-3 text-sm text-destructive" data-testid="status-upload-validation"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{validationError}</p>}
-            {submitError && <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/[0.06] p-4" data-testid="status-upload-error"><p className="flex items-start gap-2 text-sm leading-6 text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{submitError}</p><button type="button" onClick={() => setSubmitError('')} className="mt-2 text-xs font-semibold text-destructive underline underline-offset-4" data-testid="button-dismiss-upload-error">{t('إخفاء الرسالة')}</button></div>}
+            {submitError && <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/[0.06] p-4" data-testid="status-upload-error"><p className="flex items-start gap-2 text-sm leading-6 text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{submitError}</p>{user?.is_anonymous && (/حد التجربة|5 ميغابايت/.test(submitError)) && <Link href="/register" className="mt-3 inline-flex min-h-10 items-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground" data-testid="link-upgrade-after-limit">{t('إنشاء حساب للمتابعة')}</Link>}<button type="button" onClick={() => setSubmitError('')} className="mt-2 block text-xs font-semibold text-destructive underline underline-offset-4" data-testid="button-dismiss-upload-error">{t('إخفاء الرسالة')}</button></div>}
 
             {createInvoice.isPending && (
               <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4" role="status" aria-live="polite" data-testid="status-upload-progress">

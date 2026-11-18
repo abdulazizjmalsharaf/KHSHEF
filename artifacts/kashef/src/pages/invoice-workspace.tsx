@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { ArrowLeft, ArrowRight, FileCheck2, FilePlus2, Gauge, LockKeyhole, LogOut, Package, Settings2, Tags } from 'lucide-react';
+import { ArrowLeft, ArrowRight, FileCheck2, FilePlus2, Gauge, LockKeyhole, LogOut, Package, Settings2, Tags, UserPlus } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
 import { LanguageToggle } from '@/components/language-toggle';
 import { LocalizedContent, t, useLanguage } from '@/lib/i18n';
@@ -92,7 +92,7 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
             <LockKeyhole className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
             <span>{t('بيانات خاصة بحسابك')}</span>
           </div>
-          {user && (
+          {user && !user.is_anonymous && (
             <button
               type="button"
               onClick={() => void handleSignOut()}
@@ -123,7 +123,7 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
             {t('بيانات خاصة بحسابك')}
           </div>
           <LanguageToggle compact />
-          {user && (
+          {user && !user.is_anonymous && (
             <button
               type="button"
               onClick={() => void handleSignOut()}
@@ -140,6 +140,16 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
         {signOutError && <p role="alert" className="px-1 pt-2 text-xs text-destructive" data-testid="status-sign-out-error-mobile">{signOutError}</p>}
       </header>
       <main className="mx-auto w-full max-w-7xl min-w-0 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-7 sm:px-7 sm:pt-10 md:ms-64 md:w-[calc(100%-16rem)] md:pb-10">
+        {user?.is_anonymous && (
+          <div className="sticky top-0 z-30 -mx-4 mb-5 border-b border-accent/30 bg-background/95 px-4 py-2.5 backdrop-blur sm:-mx-7 sm:px-7" data-testid="banner-guest-trial">
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 rounded-xl border border-accent/35 bg-accent/10 px-3 py-2">
+              <p className="min-w-0 flex-1 text-xs leading-5 text-foreground sm:text-sm" data-testid="text-guest-trial-note">{t('أنت تجرّب كاشف. سجّل حسابك لحفظ بياناتك.')}</p>
+              <Link href="/register" className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-semibold text-primary-foreground sm:min-h-10 sm:px-4 sm:text-sm" data-testid="button-guest-create-account">
+                <UserPlus className="h-3.5 w-3.5" aria-hidden />{t('إنشاء حساب')}
+              </Link>
+            </div>
+          </div>
+        )}
         <LocalizedContent>{children}</LocalizedContent>
       </main>
       <footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border/70 px-4 py-5 text-xs text-muted-foreground md:ms-64 md:w-[calc(100%-16rem)] sm:px-7" data-testid="footer-workspace">

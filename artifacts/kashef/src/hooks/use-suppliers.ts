@@ -4,6 +4,7 @@ import type { SupplierRow } from "@/lib/invoice-types";
 
 const IMPORT_BUCKET = "supplier-price-imports";
 const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
+const MAX_GUEST_IMPORT_BYTES = 5 * 1024 * 1024;
 
 export type SupplierSaveInput = {
   id?: string;
@@ -220,10 +221,13 @@ export function useDeleteSupplier(userId: string | undefined) {
   });
 }
 
-export function useImportSupplierPriceList(userId: string | undefined) {
+export function useImportSupplierPriceList(userId: string | undefined, isGuest = false) {
   return useMutation({
     mutationFn: async (file: File): Promise<SupplierPriceListResult> => {
       if (!userId) throw new Error("سجّل الدخول قبل رفع قائمة الأسعار.");
+      if (isGuest && file.size > MAX_GUEST_IMPORT_BYTES) {
+        throw new Error("حجم الملف لحساب التجربة يجب ألا يتجاوز 5 ميغابايت. أنشئ حسابًا لرفع ملفات أكبر.");
+      }
       if (!file.size || file.size > MAX_IMPORT_BYTES) {
         throw new Error("اختر ملفًا أصغر من 10 ميغابايت.");
       }

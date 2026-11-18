@@ -91,7 +91,7 @@ export default function Home() {
           <h1 className="rise font-display text-[2.65rem] leading-[1.16] text-primary sm:text-6xl" style={{ animationDelay: '80ms' }}>{t('ادفع لمورّدك')}<br /><span className="relative inline-block"><span className="relative z-10">{t('وأنت متأكد.')}</span><span className="absolute inset-x-0 bottom-1 z-0 h-3.5 bg-accent/50" aria-hidden /></span></h1>
           <p className="rise mt-5 max-w-lg text-base leading-[1.9] text-muted-foreground sm:text-lg" style={{ animationDelay: '150ms' }}>{t('قارن ما طلبته بما وصل وما في الفاتورة. اكتشف الفرق قبل أن تدفع — ببساطة.')}</p>
           <div className="rise mt-7 flex flex-wrap items-center gap-3" style={{ animationDelay: '220ms' }}>
-            <Link href="/register" className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-[0_10px_24px_-12px_hsl(186_62%_20%/0.7)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" data-testid="button-hero-start">{t('ابدأ مجاناً')}</Link>
+            <Link href="/app" className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground shadow-[0_10px_24px_-12px_hsl(186_62%_20%/0.7)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" data-testid="button-hero-start">{t('ابدأ مجاناً')}</Link>
             <a href="#how" className="inline-flex h-12 items-center gap-2 rounded-xl border border-input bg-card/60 px-5 font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="link-scroll-how">{t('كيف يعمل')} <ArrowDown className="h-4 w-4" aria-hidden /></a>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">{t('لا تحتاج إلى خبرة محاسبية.')}</p>
@@ -144,7 +144,7 @@ export default function Home() {
         <div className="relative overflow-hidden rounded-[1.75rem] border border-accent/35 bg-accent/15 px-6 py-8 sm:flex sm:items-center sm:justify-between sm:gap-8 sm:px-10 sm:py-9">
           <div className="absolute -left-8 -top-12 h-36 w-36 rounded-full border border-accent/30" aria-hidden />
           <div className="relative"><h2 className="font-display text-3xl text-primary">{t('ابدأ بمورّد واحد')}</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t('جرّب مراجعة فاتورتك القادمة قبل الدفع.')}</p></div>
-          <Link href="/register" className="relative mt-5 inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground hover:-translate-y-0.5 sm:mt-0 sm:w-auto" data-testid="button-footer-start">{t('ابدأ مجاناً')}</Link>
+          <Link href="/app" className="relative mt-5 inline-flex h-12 w-full items-center justify-center rounded-xl bg-primary px-6 font-semibold text-primary-foreground hover:-translate-y-0.5 sm:mt-0 sm:w-auto" data-testid="button-footer-start">{t('ابدأ مجاناً')}</Link>
         </div>
       </section>
     </main>
