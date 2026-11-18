@@ -1,5 +1,6 @@
 import { Moon, Sun } from 'lucide-react';
 import type { Theme } from '@/hooks/use-theme';
+import { t } from '@/lib/i18n';
 
 export function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () => void }) {
   const dark = theme === 'dark';
@@ -8,8 +9,8 @@ export function ThemeToggle({ theme, onToggle }: { theme: Theme; onToggle: () =>
       type="button"
       onClick={onToggle}
       aria-pressed={dark}
-      aria-label={dark ? 'الوضع الداكن مفعّل، التبديل إلى الفاتح' : 'التبديل إلى الوضع الداكن'}
-      title={dark ? 'الوضع الفاتح' : 'الوضع الداكن'}
+      aria-label={dark ? t('الوضع الداكن مفعّل، التبديل إلى الفاتح') : t('التبديل إلى الوضع الداكن')}
+      title={dark ? t('الوضع الفاتح') : t('الوضع الداكن')}
       className="group relative grid h-10 w-10 place-items-center overflow-hidden rounded-xl border border-input bg-card text-primary transition-colors hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       data-testid="button-theme-toggle"
     >

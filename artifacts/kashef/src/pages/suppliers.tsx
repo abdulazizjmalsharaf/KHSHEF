@@ -19,6 +19,7 @@ import {
   useSuppliers,
 } from "@/hooks/use-suppliers";
 import type { SupplierRow } from "@/lib/invoice-types";
+import { getLanguage, t } from "@/lib/i18n";
 import {
   PageIntro,
   QueryProblem,
@@ -65,14 +66,14 @@ export default function SuppliersPage() {
         contactPhone: phone,
       });
       setNotice(
-        editing ? "تم تحديث بيانات المورد." : "تمت إضافة المورد إلى قائمتك.",
+        editing ? t("تم تحديث بيانات المورد.") : t("تمت إضافة المورد إلى قائمتك."),
       );
       reset();
     } catch (error) {
       setFormError(
         error instanceof Error
           ? error.message
-          : "تعذر حفظ المورد. تحقق من البيانات وحاول مرة أخرى.",
+          : t("تعذر حفظ المورد. تحقق من البيانات وحاول مرة أخرى."),
       );
     }
   };
@@ -83,15 +84,15 @@ export default function SuppliersPage() {
     try {
       await deleteSupplier.mutateAsync(deleting.id);
       if (editing?.id === deleting.id) reset();
-      setNotice(
-        `تم حذف ${deleting.name}. بقيت الأسعار المحفوظة دون ارتباط بمورد.`,
-      );
+      setNotice(getLanguage() === "ar"
+        ? `تم حذف ${deleting.name}. بقيت الأسعار المحفوظة دون ارتباط بمورد.`
+        : `${deleting.name} was deleted. Saved prices remain, but are no longer linked to a supplier.`);
       setDeleting(null);
     } catch (error) {
       setActionError(
         error instanceof Error
           ? error.message
-          : "تعذر حذف المورد. حاول مرة أخرى.",
+          : t("تعذر حذف المورد. حاول مرة أخرى."),
       );
     }
   };
@@ -104,16 +105,16 @@ export default function SuppliersPage() {
           className="inline-flex min-h-9 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           data-testid="link-back-to-invoices"
         >
-          <ChevronLeft className="h-4 w-4" aria-hidden /> العودة إلى الفواتير
+          <ChevronLeft className="h-4 w-4" aria-hidden /> {t("العودة إلى الفواتير")}
         </Link>
       </div>
       <PageIntro
-        eyebrow="دفتر الموردين"
-        title="الموردون"
-        description="احتفظ بأسماء الموردين ووسائل التواصل في مساحة خاصة بحسابك، ثم اربط بهم أسعار الأصناف المتفق عليها."
+        eyebrow={t("دفتر الموردين")}
+        title={t("الموردون")}
+        description={t("احتفظ بأسماء الموردين ووسائل التواصل في مساحة خاصة بحسابك، ثم اربط بهم أسعار الأصناف المتفق عليها.")}
         action={
           <span className="inline-flex min-h-10 items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.045] px-4 text-xs font-semibold text-primary">
-            <ShieldCheck className="h-4 w-4" aria-hidden /> دفتر خاص بحسابك
+            <ShieldCheck className="h-4 w-4" aria-hidden /> {t("دفتر خاص بحسابك")}
           </span>
         }
       />
@@ -121,7 +122,7 @@ export default function SuppliersPage() {
       {authLoading ? (
         <section
           className="grid gap-4 lg:grid-cols-[.8fr_1.2fr]"
-          aria-label="جارٍ التحقق من الحساب"
+          aria-label={t("جارٍ التحقق من الحساب")}
           data-testid="status-suppliers-auth-loading"
         >
           <div className="h-72 animate-pulse rounded-2xl bg-muted" />
@@ -134,23 +135,23 @@ export default function SuppliersPage() {
         >
           <ShieldCheck className="mx-auto h-9 w-9 text-primary" aria-hidden />
           <h2 className="mt-4 font-display text-2xl text-primary">
-            دفتر الموردين خاص بك
+            {t("دفتر الموردين خاص بك")}
           </h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            ادخل إلى حسابك للوصول إلى الموردين وبيانات التواصل المحفوظة.
+            {t("ادخل إلى حسابك للوصول إلى الموردين وبيانات التواصل المحفوظة.")}
           </p>
           <Link
             href="/login"
             className="mt-5 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground"
             data-testid="link-suppliers-login"
           >
-            الدخول إلى حسابك
+            {t("الدخول إلى حسابك")}
           </Link>
         </section>
       ) : suppliers.isLoading ? (
         <section
           className="grid gap-4 lg:grid-cols-[.8fr_1.2fr]"
-          aria-label="جارٍ تحميل الموردين"
+          aria-label={t("جارٍ تحميل الموردين")}
           data-testid="status-suppliers-loading"
         >
           <div className="h-72 animate-pulse rounded-2xl border border-border bg-card" />
@@ -158,7 +159,7 @@ export default function SuppliersPage() {
         </section>
       ) : suppliers.isError ? (
         <QueryProblem
-          message="تعذر تحميل الموردين. أعد المحاولة؛ لن نعرض بيانات غير مؤكدة."
+          message={t("تعذر تحميل الموردين. أعد المحاولة؛ لن نعرض بيانات غير مؤكدة.")}
           onRetry={() => void suppliers.refetch()}
           testId="status-suppliers-error"
         />
@@ -177,10 +178,10 @@ export default function SuppliersPage() {
                   className="font-display text-xl text-primary"
                   data-testid="heading-supplier-form"
                 >
-                  {editing ? "تعديل المورد" : "إضافة مورد"}
+                  {t(editing ? "تعديل المورد" : "إضافة مورد")}
                 </h2>
                 <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  الاسم ورقم التواصل الذي تستخدمه عند مراجعة الفواتير.
+                  {t("الاسم ورقم التواصل الذي تستخدمه عند مراجعة الفواتير.")}
                 </p>
               </div>
             </div>
@@ -195,7 +196,7 @@ export default function SuppliersPage() {
                   htmlFor="supplier-name"
                   className="mb-1.5 block text-sm font-medium"
                 >
-                  اسم المورد
+                  {t("اسم المورد")}
                 </label>
                 <input
                   id="supplier-name"
@@ -204,7 +205,7 @@ export default function SuppliersPage() {
                   maxLength={80}
                   required
                   autoComplete="organization"
-                  placeholder="مثال: شركة التوريدات الغذائية"
+                  placeholder={t("مثال: شركة التوريدات الغذائية")}
                   className="min-h-11 w-full rounded-xl border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   data-testid="input-supplier-name"
                 />
@@ -214,9 +215,9 @@ export default function SuppliersPage() {
                   htmlFor="supplier-phone"
                   className="mb-1.5 block text-sm font-medium"
                 >
-                  رقم التواصل{" "}
+                  {t("رقم التواصل")}{" "}
                   <span className="font-normal text-muted-foreground">
-                    · اختياري
+                    · {t("اختياري")}
                   </span>
                 </label>
                 <input
@@ -241,7 +242,7 @@ export default function SuppliersPage() {
                     className="mt-0.5 h-4 w-4 shrink-0"
                     aria-hidden
                   />
-                  {formError}
+                  {t(formError)}
                 </p>
               )}
               {notice && (
@@ -250,7 +251,7 @@ export default function SuppliersPage() {
                   className="rounded-xl border border-primary/20 bg-primary/[0.05] p-3 text-sm text-primary"
                   data-testid="status-supplier-saved"
                 >
-                  {notice}
+                  {t(notice)}
                 </p>
               )}
               <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row">
@@ -262,7 +263,7 @@ export default function SuppliersPage() {
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-input px-4 text-sm font-semibold text-muted-foreground hover:bg-muted disabled:opacity-50"
                     data-testid="button-cancel-supplier-edit"
                   >
-                    <X className="h-4 w-4" aria-hidden /> إلغاء
+                    <X className="h-4 w-4" aria-hidden /> {t("إلغاء")}
                   </button>
                 )}
                 <button
@@ -282,10 +283,10 @@ export default function SuppliersPage() {
                     <Plus className="h-4 w-4" aria-hidden />
                   )}
                   {saveSupplier.isPending
-                    ? "جارٍ الحفظ…"
-                    : editing
+                    ? t("جارٍ الحفظ…")
+                    : t(editing
                       ? "حفظ التعديل"
-                      : "إضافة المورد"}
+                      : "إضافة المورد")}
                 </button>
               </div>
             </form>
@@ -294,20 +295,20 @@ export default function SuppliersPage() {
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
                 <h2 className="font-display text-xl text-primary">
-                  دفتر الموردين
+                  {t("دفتر الموردين")}
                 </h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  أسماء الاتصال المعتمدة لمساحتك.
+                  {t("أسماء الاتصال المعتمدة لمساحتك.")}
                 </p>
               </div>
               <span
                 className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-primary tabular-nums"
                 data-testid="text-supplier-count"
               >
-                {new Intl.NumberFormat("ar-KW").format(
+                {new Intl.NumberFormat(getLanguage() === "ar" ? "ar-KW" : "en-KW").format(
                   suppliers.data?.length ?? 0,
                 )}{" "}
-                مورد
+                 {t("مورد")}
               </span>
             </div>
             {deleting && (
@@ -317,9 +318,9 @@ export default function SuppliersPage() {
                 data-testid={`confirm-delete-supplier-${deleting.id}`}
               >
                 <p className="text-sm leading-6">
-                  حذف <strong>{deleting.name}</strong> من دفتر الموردين؟{" "}
+                  {t("حذف")} <strong data-no-translate>{deleting.name}</strong> {t("من دفتر الموردين؟")}{" "}
                   <span className="block text-destructive">
-                    ستبقى الأسعار المحفوظة، لكنها ستصبح غير مرتبطة بمورد.
+                    {t("ستبقى الأسعار المحفوظة، لكنها ستصبح غير مرتبطة بمورد.")}
                   </span>
                 </p>
                 <div className="flex gap-2">
@@ -330,7 +331,7 @@ export default function SuppliersPage() {
                     className="min-h-9 rounded-lg border border-input px-3 text-xs font-semibold hover:bg-muted"
                     data-testid="button-cancel-delete-supplier"
                   >
-                    إبقاء المورد
+                    {t("إبقاء المورد")}
                   </button>
                   <button
                     type="button"
@@ -340,11 +341,10 @@ export default function SuppliersPage() {
                     data-testid="button-confirm-delete-supplier"
                   >
                     {deleteSupplier.isPending ? (
-                      "جارٍ الحذف…"
+                      t("جارٍ الحذف…")
                     ) : (
                       <>
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden /> تأكيد
-                        الحذف
+                         <Trash2 className="h-3.5 w-3.5" aria-hidden /> {t("تأكيد الحذف")}
                       </>
                     )}
                   </button>
@@ -357,7 +357,7 @@ export default function SuppliersPage() {
                 className="mb-3 rounded-xl border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive"
                 data-testid="status-supplier-action-error"
               >
-                {actionError}
+                {t(actionError)}
               </p>
             )}
             {!suppliers.data?.length ? (
@@ -369,11 +369,10 @@ export default function SuppliersPage() {
                   <ContactRound className="h-6 w-6" aria-hidden />
                 </div>
                 <h3 className="mt-4 font-display text-xl text-primary">
-                  ابدأ دفتر الموردين
+                  {t("ابدأ دفتر الموردين")}
                 </h3>
                 <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-                  أضف الموردين الذين تتعامل معهم لتربط أسعارهم المتفق عليها
-                  بمرجع واضح قبل مراجعة الفاتورة.
+                  {t("أضف الموردين الذين تتعامل معهم لتربط أسعارهم المتفق عليها بمرجع واضح قبل مراجعة الفاتورة.")}
                 </p>
                 <button
                   type="button"
@@ -383,7 +382,7 @@ export default function SuppliersPage() {
                   className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground"
                   data-testid="button-add-first-supplier"
                 >
-                  <Plus className="h-4 w-4" aria-hidden /> إضافة مورد
+                  <Plus className="h-4 w-4" aria-hidden /> {t("إضافة مورد")}
                 </button>
               </div>
             ) : (
@@ -396,9 +395,10 @@ export default function SuppliersPage() {
                   >
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
-                        <h3
+                         <h3
                           className="truncate text-base font-semibold"
                           data-testid={`text-supplier-name-${supplier.id}`}
+                           data-no-translate
                         >
                           {supplier.name}
                         </h3>
@@ -410,7 +410,7 @@ export default function SuppliersPage() {
                           {supplier.contact_phone ? (
                             <bdi dir="ltr">{supplier.contact_phone}</bdi>
                           ) : (
-                            "لا يوجد رقم تواصل"
+                            t("لا يوجد رقم تواصل")
                           )}
                         </p>
                       </div>
@@ -418,7 +418,7 @@ export default function SuppliersPage() {
                         <button
                           type="button"
                           onClick={() => startEdit(supplier)}
-                          aria-label={`تعديل ${supplier.name}`}
+                          aria-label={`${t("تعديل")} ${supplier.name}`}
                           className="grid h-11 w-11 place-items-center rounded-lg border border-border text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           data-testid={`button-edit-supplier-${supplier.id}`}
                         >
@@ -430,7 +430,7 @@ export default function SuppliersPage() {
                             setDeleting(supplier);
                             setActionError("");
                           }}
-                          aria-label={`حذف ${supplier.name}`}
+                          aria-label={`${t("حذف")} ${supplier.name}`}
                           className="grid h-11 w-11 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           data-testid={`button-delete-supplier-${supplier.id}`}
                         >
@@ -450,8 +450,7 @@ export default function SuppliersPage() {
                 className="mt-0.5 h-4 w-4 shrink-0 text-primary"
                 aria-hidden
               />
-              بيانات الموردين خاصة بحسابك. حذف المورد لا يحذف أسعارك السابقة، بل
-              يفصلها عن المورد فقط.
+              {t("بيانات الموردين خاصة بحسابك. حذف المورد لا يحذف أسعارك السابقة، بل يفصلها عن المورد فقط.")}
             </div>
           </section>
         </div>

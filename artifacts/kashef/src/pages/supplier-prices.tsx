@@ -27,6 +27,7 @@ import {
   useSuppliers,
 } from "@/hooks/use-suppliers";
 import type { SupplierPriceRow } from "@/lib/invoice-types";
+import { getLanguage, t } from "@/lib/i18n";
 import {
   PageIntro,
   QueryProblem,
@@ -67,15 +68,15 @@ function formatPrice(price: string | number, currency: string) {
   const digits = currency === "KWD" || currency === "BHD" ? 3 : 2;
   const amount = Number(price);
   return Number.isFinite(amount)
-    ? `${new Intl.NumberFormat("ar-KW", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount)} ${currency}`
+     ? `${new Intl.NumberFormat(getLanguage() === "ar" ? "ar-KW" : "en-KW", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount)} ${currency}`
     : `${price} ${currency}`;
 }
 
 function formatUpdatedAt(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
-    ? "غير معروف"
-    : new Intl.DateTimeFormat("ar-KW", {
+    ? t("غير معروف")
+    : new Intl.DateTimeFormat(getLanguage() === "ar" ? "ar-KW" : "en-KW", {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -129,13 +130,13 @@ export default function SupplierPricesPage() {
       if (raw === null) return;
       sessionStorage.removeItem(key);
     } catch {
-      setFormError("تعذر الوصول إلى بيانات السعر المنقولة من الفاتورة.");
+      setFormError(t("تعذر الوصول إلى بيانات السعر المنقولة من الفاتورة."));
       return;
     }
     try {
       const value: unknown = JSON.parse(raw);
       if (!value || typeof value !== "object") {
-        setFormError("تعذر قراءة بيانات السعر المنقولة من الفاتورة.");
+        setFormError(t("تعذر قراءة بيانات السعر المنقولة من الفاتورة."));
         return;
       }
       const pending = value as Record<string, unknown>;
@@ -150,7 +151,7 @@ export default function SupplierPricesPage() {
         currency: typeof pending.currency === "string" ? pending.currency : "KWD",
       });
     } catch {
-      setFormError("تعذر قراءة بيانات السعر المنقولة من الفاتورة.");
+      setFormError(t("تعذر قراءة بيانات السعر المنقولة من الفاتورة."));
     }
   }, []);
 
@@ -164,8 +165,8 @@ export default function SupplierPricesPage() {
         unitPrice: pendingCarryover.unitPrice,
         currency: pendingCarryover.currency || "KWD",
       });
-      setFormError("تعذر تحميل الموردين. بقيت بيانات الصنف والسعر؛ أعد تحميل القائمة ثم اختر المورد.");
-      setNotice("نُقلت بيانات السعر من الفاتورة؛ راجعها قبل الحفظ.");
+      setFormError(t("تعذر تحميل الموردين. بقيت بيانات الصنف والسعر؛ أعد تحميل القائمة ثم اختر المورد."));
+      setNotice(t("نُقلت بيانات السعر من الفاتورة؛ راجعها قبل الحفظ."));
       setPendingCarryover(null);
       return;
     }
@@ -183,12 +184,12 @@ export default function SupplierPricesPage() {
     setEditing(null);
     setFormError(
       !validItemName
-        ? "اسم الصنف غير صالح. أدخله يدويًا قبل حفظ السعر."
+        ? t("اسم الصنف غير صالح. أدخله يدويًا قبل حفظ السعر.")
         : !matchingSupplier
-          ? "لم نعثر على المورد المحفوظ لهذه الفاتورة. اختر المورد الصحيح قبل الحفظ."
+          ? t("لم نعثر على المورد المحفوظ لهذه الفاتورة. اختر المورد الصحيح قبل الحفظ.")
           : "",
     );
-    setNotice("نُقلت بيانات السعر من الفاتورة؛ راجعها قبل الحفظ.");
+    setNotice(t("نُقلت بيانات السعر من الفاتورة؛ راجعها قبل الحفظ."));
     setPendingCarryover(null);
   }, [pendingCarryover, suppliers.isLoading, suppliers.isError]);
 
@@ -224,7 +225,7 @@ export default function SupplierPricesPage() {
       editing && (!form.supplierId || form.supplierId === "__unlinked"),
     );
     if (!supplier && !keepUnlinked) {
-      setFormError("اختر موردًا محفوظًا لربط السعر به.");
+      setFormError(t("اختر موردًا محفوظًا لربط السعر به."));
       return;
     }
     try {
@@ -239,15 +240,15 @@ export default function SupplierPricesPage() {
       });
       setNotice(
         editing
-          ? "تم تحديث السعر المتفق عليه."
-          : "تمت إضافة السعر المتفق عليه.",
+          ? t("تم تحديث السعر المتفق عليه.")
+          : t("تمت إضافة السعر المتفق عليه."),
       );
       resetForm();
     } catch (error) {
       setFormError(
         error instanceof Error
-          ? error.message
-          : "تعذر حفظ السعر. تحقق من البيانات ثم حاول مجددًا.",
+          ? t(error.message)
+          : t("تعذر حفظ السعر. تحقق من البيانات ثم حاول مجددًا."),
       );
     }
   };
@@ -287,26 +288,26 @@ export default function SupplierPricesPage() {
       );
       setImportSupplierId(matched?.id ?? "");
       setImportNotice(
-        "اكتملت القراءة. راجع الصفوف قبل اعتمادها؛ لم يتم حفظ أي سعر.",
+        t("اكتملت القراءة. راجع الصفوف قبل اعتمادها؛ لم يتم حفظ أي سعر."),
       );
     } catch (error) {
       setImportError(
         error instanceof Error
-          ? error.message
-          : "تعذرت قراءة الملف. تحقق منه وحاول مرة أخرى.",
+          ? t(error.message)
+          : t("تعذرت قراءة الملف. تحقق منه وحاول مرة أخرى."),
       );
     }
   };
 
   const confirmReview = () => {
     if (!reviewRows.length) {
-      setImportError("أبقِ صفًا واحدًا على الأقل قبل متابعة المراجعة.");
+      setImportError(t("أبقِ صفًا واحدًا على الأقل قبل متابعة المراجعة."));
       return;
     }
     setReviewed(true);
     setImportError("");
     setImportNotice(
-      "أصبحت الصفوف جاهزة للتحرير. راجع كل اسم ووحدة وسعر قبل الحفظ.",
+      t("أصبحت الصفوف جاهزة للتحرير. راجع كل اسم ووحدة وسعر قبل الحفظ."),
     );
   };
 
@@ -314,15 +315,15 @@ export default function SupplierPricesPage() {
     setImportError("");
     setImportNotice("");
     if (!reviewed) {
-      setImportError("راجع القائمة أولًا قبل الحفظ.");
+      setImportError(t("راجع القائمة أولًا قبل الحفظ."));
       return;
     }
     if (!importSupplierId) {
-      setImportError("اختر المورد المحفوظ الذي تخصه هذه الأسعار.");
+      setImportError(t("اختر المورد المحفوظ الذي تخصه هذه الأسعار."));
       return;
     }
     if (!confirmedKwd) {
-      setImportError("أكد أن جميع المبالغ بالدينار الكويتي قبل الحفظ.");
+      setImportError(t("أكد أن جميع المبالغ بالدينار الكويتي قبل الحفظ."));
       return;
     }
     if (
@@ -334,7 +335,7 @@ export default function SupplierPricesPage() {
       )
     ) {
       setImportError(
-        "أكمل اسم الصنف وسعرًا صحيحًا لكل صف، أو أزل الصفوف غير المكتملة.",
+        t("أكمل اسم الصنف وسعرًا صحيحًا لكل صف، أو أزل الصفوف غير المكتملة."),
       );
       return;
     }
@@ -349,7 +350,9 @@ export default function SupplierPricesPage() {
         confirmedKwd: true,
       });
       setImportNotice(
-        `تم حفظ ${new Intl.NumberFormat("ar-KW").format(count)} سعرًا بالدينار الكويتي للمورد المختار.`,
+        getLanguage() === "ar"
+          ? `تم حفظ ${new Intl.NumberFormat("ar-KW").format(count)} سعرًا بالدينار الكويتي للمورد المختار.`
+          : `Saved ${new Intl.NumberFormat("en-KW").format(count)} KWD prices for the selected supplier.`,
       );
       setReviewRows([]);
       setReviewed(false);
@@ -360,8 +363,8 @@ export default function SupplierPricesPage() {
     } catch (error) {
       setImportError(
         error instanceof Error
-          ? error.message
-          : "تعذر حفظ القائمة كاملة. لم يتم حفظ أي صف؛ حاول مرة أخرى.",
+          ? t(error.message)
+          : t("تعذر حفظ القائمة كاملة. لم يتم حفظ أي صف؛ حاول مرة أخرى."),
       );
     }
   };
@@ -372,13 +375,13 @@ export default function SupplierPricesPage() {
     try {
       await deletePrice.mutateAsync(deleting.id);
       if (editing?.id === deleting.id) resetForm();
-      setNotice("تم حذف السعر المتفق عليه.");
+      setNotice(t("تم حذف السعر المتفق عليه."));
       setDeleting(null);
     } catch (error) {
       setActionError(
         error instanceof Error
-          ? error.message
-          : "تعذر حذف السعر. حاول مرة أخرى.",
+          ? t(error.message)
+          : t("تعذر حذف السعر. حاول مرة أخرى."),
       );
     }
   };
@@ -526,12 +529,12 @@ export default function SupplierPricesPage() {
                   >
                     <option value="">اختر موردًا محفوظًا</option>
                     {editing && !editing.supplier_id && (
-                      <option value="__unlinked">
-                        غير مرتبط · {editing.supplier_name}
+                      <option value="__unlinked" data-no-translate>
+                        {`${t("غير مرتبط")} · ${editing.supplier_name}`}
                       </option>
                     )}
                     {suppliers.data?.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>
+                      <option key={supplier.id} value={supplier.id} data-no-translate>
                         {supplier.name}
                       </option>
                     ))}
@@ -725,7 +728,7 @@ export default function SupplierPricesPage() {
                   className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-primary tabular-nums"
                   data-testid="text-price-count"
                 >
-                  {new Intl.NumberFormat("ar-KW").format(
+                  {new Intl.NumberFormat(getLanguage() === "ar" ? "ar-KW" : "en-KW").format(
                     prices.data?.length ?? 0,
                   )}{" "}
                   سعر
@@ -738,8 +741,8 @@ export default function SupplierPricesPage() {
                   data-testid={`confirm-delete-price-${deleting.id}`}
                 >
                   <p className="text-sm leading-6">
-                    حذف سعر <strong>{deleting.item_name}</strong> لدى{" "}
-                    <strong>{deleting.supplier_name}</strong>؟
+                    {t("حذف سعر")} <strong data-no-translate>{deleting.item_name}</strong> {t("لدى")}{" "}
+                    <strong data-no-translate>{deleting.supplier_name}</strong>؟
                   </p>
                   <div className="flex shrink-0 gap-2">
                     <button
@@ -809,7 +812,7 @@ export default function SupplierPricesPage() {
                             className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
                             data-testid={`text-price-supplier-${row.id}`}
                           >
-                            {row.supplier_name}
+                            <span data-no-translate>{row.supplier_name}</span>
                             {!row.supplier_id && (
                               <span
                                 className="rounded-full border border-accent/35 bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-foreground"
@@ -823,7 +826,7 @@ export default function SupplierPricesPage() {
                             className="mt-1 text-base font-semibold"
                             data-testid={`text-price-item-${row.id}`}
                           >
-                            {row.item_name}
+                            <span data-no-translate>{row.item_name}</span>
                           </h3>
                           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                             <span data-testid={`text-price-unit-${row.id}`}>
@@ -853,7 +856,7 @@ export default function SupplierPricesPage() {
                             <button
                               type="button"
                               onClick={() => startEdit(row)}
-                              aria-label={`تعديل سعر ${row.item_name} لدى ${row.supplier_name}`}
+                              aria-label={`${t("تعديل سعر")} ${row.item_name} ${t("لدى")} ${row.supplier_name}`}
                               className="grid h-10 w-10 place-items-center rounded-lg border border-border text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               data-testid={`button-edit-price-${row.id}`}
                             >
@@ -865,7 +868,7 @@ export default function SupplierPricesPage() {
                                 setDeleting(row);
                                 setActionError("");
                               }}
-                              aria-label={`حذف سعر ${row.item_name} لدى ${row.supplier_name}`}
+                              aria-label={`${t("حذف سعر")} ${row.item_name} ${t("لدى")} ${row.supplier_name}`}
                               className="grid h-10 w-10 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               data-testid={`button-delete-price-${row.id}`}
                             >
@@ -1038,8 +1041,8 @@ export default function SupplierPricesPage() {
                           data-testid="text-import-supplier-hint"
                         >
                           {importResult.supplierName
-                            ? `تلميح المورد: ${importResult.supplierName}`
-                            : "لم يُتعرف على اسم المورد"}
+                            ? `${t("تلميح المورد:")} ${importResult.supplierName}`
+                            : t("لم يُتعرف على اسم المورد")}
                         </h3>
                       </div>
                       <span
@@ -1047,8 +1050,8 @@ export default function SupplierPricesPage() {
                         data-testid="badge-import-currency"
                       >
                         {importResult.currency
-                          ? `العملة المستخرجة: ${importResult.currency}`
-                          : "العملة غير معروفة"}
+                          ? `${t("العملة المستخرجة:")} ${importResult.currency}`
+                          : t("العملة غير معروفة")}
                       </span>
                     </div>
                     {!currencyIsKwd && (
@@ -1057,9 +1060,7 @@ export default function SupplierPricesPage() {
                         className="mt-3 rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm leading-6 text-destructive"
                         data-testid="warning-import-currency"
                       >
-                        العملة المستخرجة ليست دينارًا كويتيًا أو لم يتم تحديدها.
-                        سيتم حفظ هذه القائمة بالدينار الكويتي فقط؛ تحقق من كل
-                        مبلغ وأكد العملة صراحةً قبل الحفظ.
+                        {t("العملة المستخرجة ليست دينارًا كويتيًا أو لم يتم تحديدها. سيتم حفظ هذه القائمة بالدينار الكويتي فقط؛ تحقق من كل مبلغ وأكد العملة صراحةً قبل الحفظ.")}
                       </p>
                     )}
                     {(importResult.skippedRows > 0 ||
@@ -1074,7 +1075,7 @@ export default function SupplierPricesPage() {
                             data-testid="warning-import-skipped"
                           >
                             تم تجاوز{" "}
-                            {new Intl.NumberFormat("ar-KW").format(
+                            {new Intl.NumberFormat(getLanguage() === "ar" ? "ar-KW" : "en-KW").format(
                               importResult.skippedRows,
                             )}{" "}
                             صفًا أثناء القراءة؛ قد تحتاج إلى إدخالها يدويًا.
@@ -1129,7 +1130,7 @@ export default function SupplierPricesPage() {
                         >
                           <option value="">اختر المورد</option>
                           {suppliers.data?.map((supplier) => (
-                            <option key={supplier.id} value={supplier.id}>
+                            <option key={supplier.id} value={supplier.id} data-no-translate>
                               {supplier.name}
                             </option>
                           ))}
@@ -1150,7 +1151,7 @@ export default function SupplierPricesPage() {
                               <div className="mb-3 flex items-center justify-between gap-2">
                                 <span className="text-xs font-semibold text-muted-foreground">
                                   الصنف{" "}
-                                  {new Intl.NumberFormat("ar-KW").format(
+                                  {new Intl.NumberFormat(getLanguage() === "ar" ? "ar-KW" : "en-KW").format(
                                     index + 1,
                                   )}
                                 </span>
@@ -1180,7 +1181,7 @@ export default function SupplierPricesPage() {
                                         ),
                                       )
                                     }
-                                    aria-label={`إزالة الصنف ${row.itemName || index + 1}`}
+                                    aria-label={`${t("إزالة الصنف")} ${row.itemName || index + 1}`}
                                     className="grid h-9 w-9 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive"
                                     data-testid={`button-remove-import-row-${index}`}
                                   >
@@ -1341,7 +1342,9 @@ export default function SupplierPricesPage() {
                           )}
                           {saveImport.isPending
                             ? "جارٍ حفظ القائمة كاملة…"
-                            : `حفظ ${new Intl.NumberFormat("ar-KW").format(reviewRows.length)} سعرًا`}
+                             : getLanguage() === "ar"
+                               ? `حفظ ${new Intl.NumberFormat("ar-KW").format(reviewRows.length)} سعرًا`
+                               : `Save ${new Intl.NumberFormat("en-KW").format(reviewRows.length)} prices`}
                         </button>
                       </div>
                     </div>

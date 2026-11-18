@@ -3,6 +3,7 @@ import { useElements, useStripe, PaymentElement } from '@stripe/react-stripe-js'
 import { AlertTriangle, BadgeCheck, Loader2 } from 'lucide-react';
 import { useVerifyTestPayment, type PaymentIntentConfig } from '@workspace/api-client-react';
 import { apiErrorMessage } from '@/lib/checkout';
+import { t } from '@/lib/i18n';
 
 type Props = { intent: PaymentIntentConfig; onBusyChange: (busy: boolean) => void };
 
@@ -23,7 +24,7 @@ export function StripePaymentForm({ intent, onBusyChange }: Props) {
 
     const validation = await elements.submit();
     if (validation.error) {
-      setError(validation.error.message || 'تحقق من بيانات البطاقة ثم حاول مجددًا.');
+      setError(t(validation.error.message || 'تحقق من بيانات البطاقة ثم حاول مجددًا.'));
       setSubmitting(false);
       onBusyChange(false);
       return;
@@ -36,7 +37,7 @@ export function StripePaymentForm({ intent, onBusyChange }: Props) {
     });
 
     if (result.error) {
-      setError(result.error.message || 'تعذّر إكمال الدفع التجريبي.');
+      setError(t(result.error.message || 'تعذّر إكمال الدفع التجريبي.'));
       setSubmitting(false);
       onBusyChange(false);
       return;
@@ -44,13 +45,13 @@ export function StripePaymentForm({ intent, onBusyChange }: Props) {
 
     const paymentIntent = result.paymentIntent;
     if (!paymentIntent) {
-      setError('لم تصلنا نتيجة الدفع. أعد المحاولة من فضلك.');
+      setError(t('لم تصلنا نتيجة الدفع. أعد المحاولة من فضلك.'));
       setSubmitting(false);
       onBusyChange(false);
       return;
     }
     if (paymentIntent.id !== intent.paymentIntentId) {
-      setError('رقم عملية الدفع لا يطابق الطلب الحالي.');
+      setError(t('رقم عملية الدفع لا يطابق الطلب الحالي.'));
       setSubmitting(false);
       onBusyChange(false);
       return;
@@ -61,10 +62,10 @@ export function StripePaymentForm({ intent, onBusyChange }: Props) {
       {
         onSuccess: (verification) => {
           if (verification.status === 'paid') setComplete(true);
-          else setError(verification.message || 'لم يكتمل الدفع التجريبي بعد.');
+          else setError(t(verification.message || 'لم يكتمل الدفع التجريبي بعد.'));
         },
         onError: (verifyError) => {
-          setError(apiErrorMessage(verifyError, 'تعذّر التحقق من نتيجة الدفع التجريبي.'));
+          setError(t(apiErrorMessage(verifyError, 'تعذّر التحقق من نتيجة الدفع التجريبي.')));
         },
         onSettled: () => {
           setSubmitting(false);
@@ -79,9 +80,9 @@ export function StripePaymentForm({ intent, onBusyChange }: Props) {
       <div className="rounded-xl border border-emerald-600/25 bg-emerald-600/10 p-4 text-sm" role="status" data-testid="payment-success">
         <div className="flex items-center gap-2 font-semibold text-emerald-800 dark:text-emerald-300">
           <BadgeCheck className="h-5 w-5" aria-hidden />
-          تم تأكيد الدفع التجريبي
+          {t('تم تأكيد الدفع التجريبي')}
         </div>
-        <p className="mt-2 text-muted-foreground">لم يُخصم مبلغ حقيقي ولم يُفعّل اشتراك مدفوع.</p>
+        <p className="mt-2 text-muted-foreground">{t('لم يُخصم مبلغ حقيقي ولم يُفعّل اشتراك مدفوع.')}</p>
       </div>
     );
   }
@@ -103,8 +104,8 @@ export function StripePaymentForm({ intent, onBusyChange }: Props) {
         data-testid="button-confirm-test-payment"
       >
         {submitting || verify.isPending
-          ? <><Loader2 className="h-5 w-5 animate-spin" aria-hidden /> جارٍ التحقق من الدفع التجريبي…</>
-          : 'تأكيد الدفع التجريبي'}
+          ? <><Loader2 className="h-5 w-5 animate-spin" aria-hidden /> {t('جارٍ التحقق من الدفع التجريبي…')}</>
+          : t('تأكيد الدفع التجريبي')}
       </button>
     </form>
   );

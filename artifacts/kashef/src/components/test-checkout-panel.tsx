@@ -12,6 +12,7 @@ import type { PlanId } from '@/data/plans';
 import { formatFils } from '@/lib/money';
 import { apiErrorMessage, newRequestId } from '@/lib/checkout';
 import { StripePaymentForm } from '@/components/stripe-payment-form';
+import { getLanguage, t } from '@/lib/i18n';
 
 type Props = { open: boolean; ids: PlanId[]; onBusyChange: (busy: boolean) => void };
 
@@ -60,7 +61,7 @@ export function TestCheckoutPanel({ open, ids, onBusyChange }: Props) {
       {
         onSuccess: (result) => setIntent(result),
         onError: (mutationError) => {
-          setError(apiErrorMessage(mutationError, 'تعذّر تجهيز نموذج الدفع التجريبي.'));
+          setError(t(apiErrorMessage(mutationError, 'تعذّر تجهيز نموذج الدفع التجريبي.')));
         },
       },
     );
@@ -70,7 +71,7 @@ export function TestCheckoutPanel({ open, ids, onBusyChange }: Props) {
     <div className="space-y-3" data-testid="panel-test-checkout">
       <div role="note" className="flex gap-3 rounded-xl border border-accent/40 bg-accent/10 p-3 text-sm leading-relaxed" data-testid="text-checkout-test-notice">
         <FlaskConical className="h-5 w-5 shrink-0 text-[hsl(30_80%_38%)] dark:text-accent" aria-hidden />
-        <p>وضع اختبار فقط: لا تُخصم أي مبالغ حقيقية ولا يُفعّل أي حساب مدفوع.</p>
+        <p>{t('وضع اختبار فقط: لا تُخصم أي مبالغ حقيقية ولا يُفعّل أي حساب مدفوع.')}</p>
       </div>
       <p className="rounded-xl bg-muted p-3 text-xs leading-relaxed text-muted-foreground" data-testid="text-test-card">
         Test mode: use card 4242 4242 4242 4242
@@ -78,12 +79,12 @@ export function TestCheckoutPanel({ open, ids, onBusyChange }: Props) {
 
       <div aria-live="polite" data-testid="status-stripe-readiness">
         {status.isLoading || status.isFetching ? (
-          <div className="h-10 animate-pulse rounded-xl bg-muted" aria-label="جارٍ التحقق من جاهزية الدفع التجريبي" />
+          <div className="h-10 animate-pulse rounded-xl bg-muted" aria-label={t('جارٍ التحقق من جاهزية الدفع التجريبي')} />
         ) : !ready ? (
           <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/[0.06] p-3 text-sm leading-relaxed">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden />
             <div className="flex-1">
-              <p>{status.data?.message || (status.isError ? apiErrorMessage(status.error, 'الدفع التجريبي غير متاح حاليًا لأن إعداداته غير مكتملة.') : 'الدفع التجريبي غير متاح حاليًا.')}</p>
+              <p>{t(status.data?.message || (status.isError ? apiErrorMessage(status.error, 'الدفع التجريبي غير متاح حاليًا لأن إعداداته غير مكتملة.') : 'الدفع التجريبي غير متاح حاليًا.'))}</p>
               <button
                 type="button"
                 onClick={() => status.refetch()}
@@ -92,29 +93,29 @@ export function TestCheckoutPanel({ open, ids, onBusyChange }: Props) {
                 data-testid="button-recheck-stripe"
               >
                 <RotateCw className={`h-4 w-4 ${status.isFetching ? 'animate-spin' : ''}`} aria-hidden />
-                إعادة التحقق
+                {t('إعادة التحقق')}
               </button>
             </div>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">{status.data?.message || 'الدفع التجريبي جاهز.'}</p>
+          <p className="text-xs text-muted-foreground">{t(status.data?.message || 'الدفع التجريبي جاهز.')}</p>
         )}
       </div>
 
       {ready && status.data?.checkoutCurrency === 'usd' && (
         <p className="text-xs leading-relaxed text-muted-foreground" data-testid="text-demo-exchange-rate">
-          يظهر المبلغ بالدينار الكويتي، ويُحسب سعر التحويل عند بدء التجربة.
+          {t('يظهر المبلغ بالدينار الكويتي، ويُحسب سعر التحويل عند بدء التجربة.')}
           {status.data.exchangeRateUpdatedAt && (
-            <> آخر تحديث: <time dateTime={status.data.exchangeRateUpdatedAt}>{new Date(status.data.exchangeRateUpdatedAt).toLocaleString('ar-KW', { dateStyle: 'medium', timeStyle: 'short' })}</time>.</>
+            <> {t('آخر تحديث:')} <time dateTime={status.data.exchangeRateUpdatedAt}>{new Date(status.data.exchangeRateUpdatedAt).toLocaleString(getLanguage() === 'ar' ? 'ar-KW' : 'en-KW', { dateStyle: 'medium', timeStyle: 'short' })}</time>.</>
           )}{' '}
-          المصدر: <a className="underline underline-offset-2 hover:text-primary" href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">ExchangeRate-API</a>.
+          {t('المصدر:')} <a className="underline underline-offset-2 hover:text-primary" href="https://www.exchangerate-api.com" target="_blank" rel="noopener noreferrer">ExchangeRate-API</a>.
         </p>
       )}
 
       {intent ? (
         <>
           <div className="rounded-xl border border-card-border bg-card p-3 text-sm" data-testid="text-payment-amount">
-            المبلغ التجريبي: <strong className="tabular-nums">{formatFils(intent.amountKwdFils)}</strong>
+            {t('المبلغ التجريبي:')} <strong className="tabular-nums">{formatFils(intent.amountKwdFils)}</strong>
           </div>
           {stripePromise && (
             <Elements
@@ -138,11 +139,11 @@ export function TestCheckoutPanel({ open, ids, onBusyChange }: Props) {
           data-testid="button-open-payment-element"
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden /> : <CreditCard className="h-5 w-5" aria-hidden />}
-          {busy ? 'جارٍ تجهيز الدفع التجريبي…' : error ? 'إعادة المحاولة' : 'إظهار نموذج الدفع'}
+          {busy ? t('جارٍ تجهيز الدفع التجريبي…') : error ? t('إعادة المحاولة') : t('إظهار نموذج الدفع')}
         </button>
       )}
 
-      {error && <p role="alert" className="text-sm text-destructive" data-testid="status-checkout-error">{error}</p>}
+      {error && <p role="alert" className="text-sm text-destructive" data-testid="status-checkout-error">{t(error)}</p>}
     </div>
   );
 }

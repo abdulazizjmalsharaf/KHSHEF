@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -18,6 +18,7 @@ import SupplierPricesPage from '@/pages/supplier-prices';
 import SuppliersPage from '@/pages/suppliers';
 import { AuthProvider } from '@/components/auth-provider';
 import { AuthGate } from '@/components/auth-gate';
+import { useLanguage } from '@/lib/i18n';
 import {
   Route,
   Switch,
@@ -73,6 +74,16 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
 }
 
 function App() {
+  const { language } = useLanguage();
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
+    document.title = language === 'ar'
+      ? 'كاشف — راجع فاتورة المورد قبل أن تدفع'
+      : 'Kashef — Review supplier invoices before paying';
+  }, [language]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
