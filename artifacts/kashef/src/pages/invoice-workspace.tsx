@@ -17,6 +17,14 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
     { href: '/supplier-prices', label: 'أسعار الموردين', test: 'supplier-prices', Icon: Tags },
     { href: '/settings', label: 'الإعدادات', test: 'settings', Icon: Settings2 },
   ];
+  const mobileLabels: Record<string, string> = {
+    dashboard: 'الرئيسية',
+    'new-invoice': 'جديد',
+    invoices: 'الفواتير',
+    suppliers: 'الموردون',
+    'supplier-prices': 'الأسعار',
+    settings: 'الإعدادات',
+  };
   const isActive = (href: string) =>
     location === href ||
     (href === '/invoices' && location.startsWith('/invoices/') && location !== '/invoices/new');
@@ -42,7 +50,7 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
             data-testid={`link-workspace-${test}`}
           >
             <Icon className={variant === 'desktop' ? 'h-[18px] w-[18px] shrink-0' : 'h-[18px] w-[18px] shrink-0'} aria-hidden />
-            <span className={variant === 'mobile' ? 'max-w-full' : undefined}>{label}</span>
+            <span className={variant === 'mobile' ? 'max-w-full text-[10px] leading-tight' : undefined}>{variant === 'mobile' ? mobileLabels[test] : label}</span>
           </Link>
         );
       })}
@@ -115,7 +123,7 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
               onClick={() => void handleSignOut()}
               disabled={signingOut}
               aria-label={signingOut ? 'جارٍ تسجيل الخروج' : 'تسجيل الخروج'}
-              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60"
               data-testid="button-sign-out-mobile"
             >
               <LogOut className="h-4 w-4" aria-hidden />
@@ -125,10 +133,10 @@ export function WorkspaceFrame({ children }: { children: ReactNode }) {
         </div>
         {signOutError && <p role="alert" className="px-1 pt-2 text-xs text-destructive" data-testid="status-sign-out-error-mobile">{signOutError}</p>}
       </header>
-      <main className="mx-auto w-full max-w-7xl px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-7 sm:px-7 sm:pt-10 md:mr-64 md:w-[calc(100%-16rem)] md:pb-10">
+      <main className="mx-auto w-full max-w-7xl min-w-0 px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-7 sm:px-7 sm:pt-10 md:mr-64 md:w-[calc(100%-16rem)] md:pb-10">
         {children}
       </main>
-      <footer className="mx-auto flex max-w-7xl items-center justify-between gap-3 border-t border-border/70 px-4 py-5 text-xs text-muted-foreground md:mr-64 md:w-[calc(100%-16rem)] sm:px-7" data-testid="footer-workspace">
+      <footer className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border/70 px-4 py-5 text-xs text-muted-foreground md:mr-64 md:w-[calc(100%-16rem)] sm:px-7" data-testid="footer-workspace">
         <span className="inline-flex items-center gap-2"><FileCheck2 className="h-4 w-4 text-primary" aria-hidden /> مراجعة واضحة قبل اعتماد الدفع</span>
         <span>كاشف · الكويت</span>
       </footer>

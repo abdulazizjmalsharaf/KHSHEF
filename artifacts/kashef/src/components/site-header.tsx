@@ -26,13 +26,13 @@ export function SiteHeader({ theme, onToggleTheme, cartCount, onOpenCart }: Prop
         <nav aria-label="التنقل الرئيسي" className="hidden md:block"><NavLinks /></nav>
         <div className="flex items-center gap-2">
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          <button type="button" onClick={onOpenCart} aria-label={`فتح السلة، ${cartCount} من الباقات`} className="relative grid h-10 w-10 place-items-center rounded-xl border border-input bg-card text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="button-open-cart">
+          <button type="button" onClick={onOpenCart} aria-label={`فتح السلة، ${cartCount} من الباقات`} className="relative grid h-11 w-11 place-items-center rounded-xl border border-input bg-card text-primary hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="button-open-cart">
             <ShoppingBag className="h-5 w-5" aria-hidden />
             {cartCount > 0 && <span className="absolute -left-1.5 -top-1.5 grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground">{cartCount}</span>}
           </button>
           <Link href="/login" className="hidden h-10 items-center rounded-xl px-3 text-sm font-semibold text-primary hover:bg-secondary sm:inline-flex" data-testid="link-login">تسجيل الدخول</Link>
           <Link href="/login" className="hidden h-10 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground hover:-translate-y-0.5 sm:inline-flex" data-testid="button-header-start">ابدأ مجاناً</Link>
-          <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'} className="grid h-10 w-10 place-items-center rounded-xl border border-input text-primary md:hidden" data-testid="button-mobile-menu">
+          <button type="button" onClick={() => setMenuOpen((v) => !v)} aria-expanded={menuOpen} aria-controls="mobile-navigation" aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'} className="grid h-11 w-11 place-items-center rounded-xl border border-input text-primary md:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" data-testid="button-mobile-menu">
             {menuOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
           </button>
         </div>

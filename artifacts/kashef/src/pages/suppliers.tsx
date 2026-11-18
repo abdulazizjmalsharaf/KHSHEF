@@ -419,7 +419,7 @@ export default function SuppliersPage() {
                           type="button"
                           onClick={() => startEdit(supplier)}
                           aria-label={`تعديل ${supplier.name}`}
-                          className="grid h-10 w-10 place-items-center rounded-lg border border-border text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="grid h-11 w-11 place-items-center rounded-lg border border-border text-primary hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           data-testid={`button-edit-supplier-${supplier.id}`}
                         >
                           <PencilLine className="h-4 w-4" aria-hidden />
@@ -431,7 +431,7 @@ export default function SuppliersPage() {
                             setActionError("");
                           }}
                           aria-label={`حذف ${supplier.name}`}
-                          className="grid h-10 w-10 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          className="grid h-11 w-11 place-items-center rounded-lg border border-border text-muted-foreground hover:border-destructive/25 hover:bg-destructive/5 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           data-testid={`button-delete-supplier-${supplier.id}`}
                         >
                           <Trash2 className="h-4 w-4" aria-hidden />

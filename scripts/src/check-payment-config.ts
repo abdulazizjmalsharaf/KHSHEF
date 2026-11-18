@@ -32,10 +32,32 @@ function inspectWrapper(raw: string | undefined, name: string) {
     hasMaskedPlaceholder: /redacted|masked|^\*+$|YOUR.PASSWORD|YOUR.PROJECT/i.test(trimmed),
   };
 }
-console.info(JSON.stringify({
-  database: inspectDatabase(),
-  databaseFormat: inspectWrapper(process.env.SUPABASE_DATABASE_URL, "SUPABASE_DATABASE_URL"),
-  stripeTestKeyPresent: /^sk_test_/.test(process.env.TEST_STRIPE_SECRET_KEY ?? ""),
-  stripePublishableKeyPresent: /^pk_test_/.test(process.env.TEST_STRIPE_PUBLISHABLE_KEY ?? ""),
-  stripeFormat: inspectWrapper(process.env.TEST_STRIPE_SECRET_KEY, "TEST_STRIPE_SECRET_KEY"),
-}));
+const database = inspectDatabase();
+const testSecret = process.env.TEST_STRIPE_SECRET_KEY;
+const testPublishable = process.env.TEST_STRIPE_PUBLISHABLE_KEY;
+const secretFormat = inspectWrapper(testSecret, "TEST_STRIPE_SECRET_KEY");
+const databaseConfigured = Boolean(
+  database.present &&
+    database.parseable &&
+    database.postgresProtocol &&
+    database.passwordPresent &&
+    !database.placeholderPresent &&
+    database.projectConfigurationPresent &&
+    (database.supabaseDirectHost ||
+      (database.supabasePoolerHost && database.poolerUserMatchesProject)),
+);
+const stripeConfigured = Boolean(
+  testSecret?.startsWith("sk_test_") &&
+    testPublishable?.startsWith("pk_test_") &&
+    !secretFormat.hasVariableAssignment &&
+    !secretFormat.isVariableNameOnly &&
+    !secretFormat.hasSurroundingQuotes &&
+    !secretFormat.hasCodeFence &&
+    !secretFormat.hasLineBreak &&
+    !secretFormat.hasPostgresSchemeInside &&
+    !secretFormat.hasMaskedPlaceholder,
+);
+
+// The process exit code reports validity; never print values or derived
+// connection/key diagnostics to logs.
+if (!databaseConfigured || !stripeConfigured) process.exitCode = 1;

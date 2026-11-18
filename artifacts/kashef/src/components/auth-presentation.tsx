@@ -48,7 +48,7 @@ export function AuthFrame({ eyebrow, title, description, children }: {
           </div>
         </aside>
       </main>
-      <footer className="mx-auto flex max-w-6xl items-center justify-between gap-3 border-t border-border/70 px-4 py-5 text-xs text-muted-foreground sm:px-7"><span>مراجعة واضحة قبل اعتماد الدفع</span><span>كاشف · الكويت</span></footer>
+      <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-border/70 px-4 py-5 text-xs text-muted-foreground sm:px-7"><span>مراجعة واضحة قبل اعتماد الدفع</span><span>كاشف · الكويت</span></footer>
     </div>
   );
 }
@@ -66,7 +66,7 @@ export function AuthField({ id, label, type, value, onChange, autoComplete, plac
   return <div>
     <label htmlFor={id} className="mb-2 block text-sm font-semibold text-foreground">{label}</label>
     <div className="relative">
-      <input id={id} data-testid={`input-${id}`} type={type} value={value} onChange={(event) => onChange(event.target.value)} autoComplete={autoComplete} placeholder={placeholder} dir={type === 'email' || type === 'password' ? 'ltr' : undefined} className={`min-h-12 w-full rounded-xl border border-input bg-background px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 ${icon ? 'pr-11' : ''} ${type === 'email' || type === 'password' ? 'text-left' : ''}`} />
+      <input id={id} data-testid={`input-${id}`} type={type} value={value} onChange={(event) => onChange(event.target.value)} autoComplete={autoComplete} placeholder={placeholder} dir={type === 'email' || type === 'password' ? 'ltr' : 'auto'} className={`min-h-12 w-full rounded-xl border border-input bg-background px-4 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 ${icon ? 'pr-11' : ''} ${type === 'email' || type === 'password' ? 'text-left' : ''}`} />
       {icon && <span className="pointer-events-none absolute inset-y-0 start-4 flex items-center text-muted-foreground">{icon}</span>}
     </div>
   </div>;

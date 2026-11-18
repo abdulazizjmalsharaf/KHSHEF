@@ -90,9 +90,9 @@ export default function InvoicesPage() {
                 <div className="flex min-w-0 items-start gap-3">
                   <span className="mt-0.5 grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary text-primary"><FileText className="h-5 w-5" aria-hidden /></span>
                   <span className="min-w-0">
-                    <span className="block truncate font-semibold text-foreground" data-testid={`text-supplier-${invoice.id}`}>{invoice.supplier_name || 'مورد غير محدد'}</span>
+                    <span dir="auto" className="block truncate font-semibold text-foreground" data-testid={`text-supplier-${invoice.id}`}>{invoice.supplier_name || 'مورد غير محدد'}</span>
                     <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span data-testid={`text-invoice-number-${invoice.id}`}>رقم الفاتورة: {invoice.invoice_number || 'غير واضح'}</span>
+                      <span data-testid={`text-invoice-number-${invoice.id}`}>رقم الفاتورة: <bdi dir="auto">{invoice.invoice_number || 'غير واضح'}</bdi></span>
                       <span className="inline-flex items-center gap-1" data-testid={`text-invoice-date-${invoice.id}`}><CalendarDays className="h-3 w-3" aria-hidden />{dateLabel(invoice.invoice_date)}</span>
                     </span>
                   </span>

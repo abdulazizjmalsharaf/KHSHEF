@@ -141,7 +141,7 @@
   --chart-5: 192 14% 50%;
 
   --app-font-sans: 'IBM Plex Sans Arabic', sans-serif;
-  --app-font-serif: 'Reem Kufi', serif;
+  --app-font-serif: 'IBM Plex Sans Arabic', sans-serif;
   --app-font-mono: Menlo, monospace;
   --radius: 0.75rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(202.8169 89.1213% 53.1373% / 0); /*replace with H S L */
@@ -442,7 +442,7 @@ html { scroll-behavior: smooth; scroll-padding-top: 8.5rem; }
 .slide-in { animation: slide-in .35s cubic-bezier(.2,.7,.2,1) both; }
 .nav-link::after { content:''; position:absolute; inset-inline:.75rem; bottom:.35rem; height:2px; border-radius:2px; background:hsl(var(--accent)); transform:scaleX(0); transition:transform .25s ease; }
 .nav-link:hover::after, .nav-link:focus-visible::after { transform:scaleX(1); }
-.font-display { font-family: 'Reem Kufi', serif; }
+.font-display { font-family: 'IBM Plex Sans Arabic', sans-serif; }
 .grain::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:50; opacity:.06;
  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 .ledger-lines { background-image: repeating-linear-gradient(to bottom, transparent 0 35px, hsl(var(--border)) 35px 36px); }

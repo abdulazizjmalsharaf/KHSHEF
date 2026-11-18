@@ -170,12 +170,12 @@ export default function DashboardPage() {
                       <div className="flex min-w-0 items-center gap-3">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-border bg-background text-primary"><FileText className="h-4 w-4" aria-hidden /></span>
                         <span className="min-w-0">
-                          <span className="block truncate font-semibold text-foreground" data-testid={`text-dashboard-invoice-supplier-${invoice.id}`}>{invoice.supplier_name || 'مورد غير محدد'}</span>
+                          <span dir="auto" className="block truncate font-semibold text-foreground" data-testid={`text-dashboard-invoice-supplier-${invoice.id}`}>{invoice.supplier_name || 'مورد غير محدد'}</span>
                           <span className="mt-1 block truncate text-xs text-muted-foreground">{invoice.invoice_number ? `فاتورة رقم ${invoice.invoice_number} · ` : ''}{formatDate(invoice.invoice_date || invoice.created_at)}</span>
                         </span>
                       </div>
                       <span className="flex shrink-0 flex-col items-end gap-1.5">
-                        <span className="font-semibold tabular-nums text-foreground" data-testid={`text-dashboard-invoice-amount-${invoice.id}`}>{formatAmount(invoice.total_amount, invoice.currency)}</span>
+                        <span dir="auto" className="font-semibold tabular-nums text-foreground" data-testid={`text-dashboard-invoice-amount-${invoice.id}`}>{formatAmount(invoice.total_amount, invoice.currency)}</span>
                         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusStyle(invoice.status)}`} data-testid={`status-dashboard-invoice-${invoice.id}`}>{statusLabel(invoice.status)}</span>
                       </span>
                     </Link>
