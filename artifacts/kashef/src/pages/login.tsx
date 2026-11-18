@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (!auth.loading && auth.user) setLocation('/app');
+    if (!auth.loading && auth.user && !auth.user.is_anonymous) setLocation('/app');
   }, [auth.loading, auth.user, setLocation]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {

@@ -8,8 +8,11 @@ type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   error: string | null;
+  ensureGuestSession: () => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (businessName: string, email: string, password: string) => Promise<{ needsEmailConfirmation: boolean }>;
+  signUpWithEmail: (businessName: string, email: string, password: string) => Promise<{ needsEmailConfirmation: boolean; guestUpgrade: boolean }>;
+  finishGuestUpgrade: (password: string, businessName: string) => Promise<void>;
+  resendEmailConfirmation: (email: string, guestUpgrade: boolean) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -17,6 +20,7 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const PENDING_GUEST_UPGRADE_KEY = 'kashef:pending-guest-upgrade';
 
 function appUrl(path: string) {
   const basePath = import.meta.env.BASE_URL.endsWith('/')
@@ -29,7 +33,12 @@ function friendlyEmailAuthError(error: unknown, action: 'sign-in' | 'sign-up' | 
   const message = error instanceof Error ? error.message.toLowerCase() : '';
   if (/invalid login credentials|invalid credentials/.test(message)) return 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
   if (/email not confirmed/.test(message)) return 'أكد بريدك الإلكتروني من الرسالة التي أرسلناها، ثم سجّل الدخول.';
-  if (/already registered|user already exists/.test(message)) return 'هذا البريد مسجل من قبل. جرّب تسجيل الدخول.';
+  if (/already registered|user already exists|email.*already.*(use|exist)/.test(message)) return 'هذا البريد مسجل من قبل. جرّب تسجيل الدخول.';
+  if (/anonymous.*(disabled|not enabled)|anonymous_provider_disabled/.test(message)) return 'التجربة تحتاج تفعيل Anonymous Sign-Ins من إعدادات Supabase Auth.';
+  if (/manual.*link|identity.*link.*(disabled|not enabled)|linking.*disabled/.test(message)) return 'يلزم تفعيل ربط الهويات في إعدادات Supabase Auth حتى نربط بريدك بحساب التجربة من دون نقل بياناتك.';
+  if (/email_address_not_authorized|over_email_send_rate_limit|email rate limit/.test(message)) return 'تعذر إرسال رسالة التحقق: خدمة البريد الافتراضية في Supabase محدودة. اربط SMTP مخصصًا مثل Resend ثم أعد المحاولة.';
+  if (/otp_expired|expired.*(token|otp|link)|token.*expired/.test(message)) return 'انتهت صلاحية رابط التأكيد. أرسل رابطًا جديدًا ثم افتحه مباشرة.';
+  if (/invalid.*(token|otp|link)|token.*invalid/.test(message)) return 'رابط التأكيد غير صالح أو استُخدم من قبل. أرسل رابطًا جديدًا.';
   if (/password.*(at least|too short|shorter)/.test(message)) return 'كلمة المرور قصيرة. استخدم ٨ أحرف على الأقل.';
   if (/rate limit|too many requests/.test(message)) return 'وصلت محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.';
   if (action === 'reset') return 'تعذّر إرسال رسالة استعادة كلمة المرور. تحقق من البريد وحاول مرة أخرى.';
@@ -45,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const previousUserId = useRef<string | null>(null);
+  const guestCreation = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | undefined;
@@ -87,6 +97,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     loading,
     error,
+    async ensureGuestSession() {
+      if (user) return;
+      if (guestCreation.current) return guestCreation.current;
+
+      const attempt = (async () => {
+        const supabase = getSupabaseClient();
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (sessionData.session?.user) {
+          setSession(sessionData.session);
+          setUser(sessionData.session.user);
+          return;
+        }
+
+        const { data, error: guestError } = await supabase.auth.signInAnonymously();
+        if (guestError) {
+          const friendly = /captcha/i.test(guestError.message)
+            ? 'تعذر بدء التجربة بسبب إعداد الحماية في Supabase. فعّل Anonymous Sign-Ins وتحقق من إعداد CAPTCHA.'
+            : friendlyEmailAuthError(guestError, 'sign-in');
+          throw new Error(friendly);
+        }
+        if (!data.session || !data.user) throw new Error('لم يتم إنشاء جلسة التجربة. أعد المحاولة.');
+        setSession(data.session);
+        setUser(data.user);
+      })();
+
+      guestCreation.current = attempt;
+      try {
+        await attempt;
+      } finally {
+        if (guestCreation.current === attempt) guestCreation.current = null;
+      }
+    },
     async signInWithPassword(email, password) {
       const { data, error: signInError } = await getSupabaseClient().auth.signInWithPassword({
         email: email.trim(),
@@ -103,7 +146,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cleanedName.length < 2 || cleanedName.length > 120) {
         throw new Error('اكتب اسم منشأة من حرفين إلى ١٢٠ حرفًا.');
       }
-      const { data, error: signUpError } = await getSupabaseClient().auth.signUp({
+      const supabase = getSupabaseClient();
+      const { data: currentData, error: currentError } = await supabase.auth.getUser();
+      if (currentError) throw new Error(friendlyEmailAuthError(currentError, 'sign-up'));
+
+      if (currentData.user?.is_anonymous) {
+        const { data, error: linkError } = await supabase.auth.updateUser(
+          { email: email.trim(), data: { business_name: cleanedName } },
+          { emailRedirectTo: appUrl('/register?guest-upgrade=verified') },
+        );
+        if (linkError) throw new Error(friendlyEmailAuthError(linkError, 'sign-up'));
+
+        if (data.user) setUser(data.user);
+        const upgradedImmediately = Boolean(
+          data.user && !data.user.is_anonymous && data.user.email_confirmed_at,
+        );
+        if (!upgradedImmediately) localStorage.setItem(PENDING_GUEST_UPGRADE_KEY, currentData.user.id);
+        return { needsEmailConfirmation: !upgradedImmediately, guestUpgrade: true };
+      }
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
@@ -116,7 +178,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(data.session);
         setUser(data.session.user);
       }
-      return { needsEmailConfirmation: !data.session };
+      return { needsEmailConfirmation: !data.session, guestUpgrade: false };
+    },
+    async finishGuestUpgrade(password, businessName) {
+      if (password.length < 8) throw new Error('يجب أن تتكون كلمة المرور من 8 أحرف على الأقل.');
+      const supabase = getSupabaseClient();
+      const { data: currentData, error: currentError } = await supabase.auth.getUser();
+      if (currentError || !currentData.user) throw new Error('انتهت جلسة التجربة. سجّل الدخول من جديد.');
+      if (currentData.user.is_anonymous || !currentData.user.email_confirmed_at) {
+        throw new Error('أكد بريدك من رابط الرسالة أولًا، ثم عد إلى الصفحة لإضافة كلمة المرور.');
+      }
+
+      const { data, error: passwordError } = await supabase.auth.updateUser({
+        password,
+        data: { business_name: businessName.trim() },
+      });
+      if (passwordError) throw new Error(friendlyEmailAuthError(passwordError, 'update'));
+      if (data.user) {
+        setUser(data.user);
+        const { error: profileError } = await supabase.from('business_profiles')
+          .update({ business_name: businessName.trim() })
+          .eq('user_id', data.user.id);
+        if (profileError) throw new Error('تم ربط البريد، لكن تعذر حفظ اسم النشاط. أعد المحاولة من الإعدادات.');
+      }
+      localStorage.removeItem(PENDING_GUEST_UPGRADE_KEY);
+    },
+    async resendEmailConfirmation(email, guestUpgrade) {
+      const supabase = getSupabaseClient();
+      const { error: resendError } = await supabase.auth.resend({
+        type: guestUpgrade ? 'email_change' : 'signup',
+        email: email.trim(),
+        options: {
+          emailRedirectTo: appUrl(guestUpgrade ? '/register?guest-upgrade=verified' : '/app'),
+        },
+      });
+      if (resendError) throw new Error(friendlyEmailAuthError(resendError, 'sign-up'));
     },
     async requestPasswordReset(email) {
       const { error: resetError } = await getSupabaseClient().auth.resetPasswordForEmail(email.trim(), {
